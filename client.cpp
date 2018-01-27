@@ -22,31 +22,34 @@ void send_syn(int sockfd, struct sockaddr_in *dest_addr) {
          sizeof(*dest_addr));
 }
 
-/*
-bool receive_file_size(int sockfd, struct sockaddr_in *dest_addr) {
+void send_req(int sockfd, struct sockaddr_in *dest_addr, char *filename) {
+  char buf[BUFFSIZE];
+  *buf = REQ;
+  std::memcpy(buf + 1, filename, strlen(filename));
+  std::cout << "REQ " << buf + 1 << "\n";
+  sendto(sockfd, buf, 1 + strlen(filename), 0,
+         (struct sockaddr *)dest_addr, sizeof(*dest_addr));
+}
+
+bool receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
   unsigned int addrlen = sizeof(*dest_addr);
   char buf[BUFFSIZE];
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
                          &addrlen);
-  std::string rec_string = buf;
-  if (rec_string.length() > 3 && rec_string.substr(0, 3) == "YES") {
-    std::cout << "File is here, and is size " << std::stoi(rec_string.substr(3))
-              << "\n";
+  if (recvlen == 5 && is_reqack(*buf)) {
+    int file_size;
+    std::memcpy(&file_size, buf + 1, 4);
+    file_size = ntohl(file_size);
+    std::cout << "File exists, and is size " 
+              << file_size << "\n";
     return true;
-  } else if (rec_string.length() >= 5 && rec_string.substr(0, 5) == "CLOSE") {
+  } else if (recvlen == 1 && is_close(*buf)) {
     std::cout << "Got CLOSE message. File cannot be read.\n";
-    return false;
   }
+  return false;
 }
 
-bool request_file(int sockfd, struct sockaddr_in *dest_addr, char *filename) {
-  std::string request_str = "GET";
-  request_str += filename;
-  std::cout << "Sending request " << request_str << "\n";
-  sendto(sockfd, request_str.c_str(), request_str.length(), 0,
-         (struct sockaddr *)dest_addr, sizeof(*dest_addr));
-  receive_file_size(sockfd, dest_addr);
-}
+/*
 
 bool receive_file_packet(int sockfd, struct sockaddr_in *dest_addr,
                          std::ostream& os) {
@@ -83,6 +86,14 @@ bool request_file_packets(int sockfd, struct sockaddr_in *dest_addr,
 
 bool is_synack(char c) {
   return c == (SYN | ACK);
+}
+
+bool is_reqack(char c) {
+  return c == (REQ | ACK);
+}
+
+bool is_close(char c) {
+  return c == CLOSE;
 }
 
 // Argv contents:
@@ -135,6 +146,8 @@ int main(int argc, char **argv) {
 
   send_syn(sock_handle, &dest_addr);
   receive_synack(sock_handle, &dest_addr);
+  send_req(sock_handle, &dest_addr, argv[3]);
+  receive_reqack(sock_handle, &dest_addr);
 
   return 0;
 }

@@ -25,6 +25,9 @@ void subordinate_thread(struct sockaddr_in current_addr) {
   FileRequest fr(current_addr);
   std::cout << "Thread started with FileRequest:\n" << fr << "\n";
   fr.send_synack();
+  fr.receive_req();
+  fr.open_file();
+  fr.send_reqack();
   std::cout << "Exiting thread.\n";
 }
 

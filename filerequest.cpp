@@ -61,6 +61,47 @@ void FileRequest::send_synack() {
   return;
 }
 
+void FileRequest::receive_req() {
+  char buf[BUFFSIZE];
+  unsigned int addrlen = sizeof(this->remote_addr);
+  int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
+                         (struct sockaddr*)&(this->remote_addr), &addrlen);
+  if(recvlen > 1 && is_req(*buf)) {
+    filename = buf + 1;
+  }
+  return;
+}
+
+bool FileRequest::open_file() {
+  this->infile.open(this->filename);
+  if(this->infile.is_open()) {
+    this->file_size = get_file_size(infile);
+    return true;
+  }
+  return false;
+}
+
+void FileRequest::send_reqack() {
+  if(this->file_size < 0 || !infile.is_open()) {
+    send_close();
+  }
+
+  int file_size_network = htonl(this->file_size);
+
+  char buf[5];
+  *buf = REQ | ACK;
+  std::memcpy(buf + 1, &file_size_network, 4);
+  
+  sendto(this->sockfd, &buf, 5, 0, 
+         (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
+}
+
+void FileRequest::send_close() {
+  char buf = CLOSE;
+  sendto(this->sockfd, &buf, 1, 0,
+         (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
+}
+
 std::ostream& operator <<(std::ostream& os, const FileRequest& fr) {
   os << "Socket handle: " << fr.sockfd << "\n";
   os << "Host port: " << fr.my_addr.sin_port << "\n";
@@ -68,3 +109,17 @@ std::ostream& operator <<(std::ostream& os, const FileRequest& fr) {
   return os;
 }
 
+bool is_req(char c) {
+  return c == REQ;
+}
+
+int get_file_size(std::ifstream& infile) {
+  if(!infile.is_open()) {
+    return -1;
+  }
+
+  infile.ignore(std::numeric_limits<std::streamsize>::max());
+  int file_size = infile.gcount();
+  infile.seekg(0);
+  return file_size;
+}
