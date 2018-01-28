@@ -28,6 +28,7 @@ void subordinate_thread(struct sockaddr_in current_addr) {
   fr.receive_req();
   fr.open_file();
   fr.send_reqack();
+  fr.receive_packsyn();
   std::cout << "Exiting thread.\n";
 }
 

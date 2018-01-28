@@ -49,7 +49,24 @@ bool receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
   return false;
 }
 
+void send_packsyn(int sockfd, struct sockaddr_in *dest_addr, 
+                  int size = BUFFSIZE) {
+  char buf[5];
+  *buf = PACK | SYN;
+  size = htonl(size);
+  memcpy(buf + 1, &size, 4);
+  sendto(sockfd, buf, 5, 0,
+         (struct sockaddr *)dest_addr, sizeof(*dest_addr));
+}
+
 /*
+bool request_file_packets(int sockfd, struct sockaddr_in *dest_addr,
+                          std::ostream& os) {
+  for(int packet_num = 0;
+      request_file_packet(sockfd, dest_addr, packet_num, os);
+      packet_num++);
+  return true;
+}
 
 bool receive_file_packet(int sockfd, struct sockaddr_in *dest_addr,
                          std::ostream& os) {
@@ -66,22 +83,6 @@ bool receive_file_packet(int sockfd, struct sockaddr_in *dest_addr,
   return true;
 }
 
-bool request_file_packet(int sockfd, struct sockaddr_in *dest_addr, 
-                         int packet_num, std::ostream& os) {
-  std::cout << "Requesting packet " << packet_num << "\n";
-  std::string request_str = "PAC" + std::to_string(packet_num);
-  sendto(sockfd, request_str.c_str(), request_str.length(), 0,
-         (struct sockaddr *)dest_addr, sizeof(*dest_addr));
-  return receive_file_packet(sockfd, dest_addr, os);
-}
-
-bool request_file_packets(int sockfd, struct sockaddr_in *dest_addr,
-                          std::ostream& os) {
-  for(int packet_num = 0;
-      request_file_packet(sockfd, dest_addr, packet_num, os);
-      packet_num++);
-  return true;
-}
 */
 
 bool is_synack(char c) {
@@ -148,6 +149,8 @@ int main(int argc, char **argv) {
   receive_synack(sock_handle, &dest_addr);
   send_req(sock_handle, &dest_addr, argv[3]);
   receive_reqack(sock_handle, &dest_addr);
+  std::cout << "Sending PACKSYN\n";
+  send_packsyn(sock_handle, &dest_addr);
 
   return 0;
 }

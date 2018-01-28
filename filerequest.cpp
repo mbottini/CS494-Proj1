@@ -28,6 +28,7 @@ FileRequest::FileRequest(struct sockaddr_in remote_addr) {
   // Other members are set to invalid values for the future.
   this->filename = "";
   this->file_size = -1;
+  this->packet_size = -1;
   this->current_packet = -1;
   return;
 }
@@ -49,6 +50,7 @@ void FileRequest::set_null() {
   std::memcpy(&(this->remote_addr), buf, sizeof(struct sockaddr_in));
   this->filename = "";
   this->file_size = -1;
+  this->packet_size = -1;
   this->current_packet = -1;
   return;
 }
@@ -69,16 +71,17 @@ void FileRequest::receive_req() {
   if(recvlen > 1 && is_req(*buf)) {
     filename = buf + 1;
   }
+  else {
+    send_close();
+  }
   return;
 }
 
-bool FileRequest::open_file() {
+void FileRequest::open_file() {
   this->infile.open(this->filename);
   if(this->infile.is_open()) {
     this->file_size = get_file_size(infile);
-    return true;
   }
-  return false;
 }
 
 void FileRequest::send_reqack() {
@@ -95,6 +98,28 @@ void FileRequest::send_reqack() {
   sendto(this->sockfd, &buf, 5, 0, 
          (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
 }
+
+void FileRequest::receive_packsyn() {
+  char buf[BUFFSIZE];
+  unsigned int addrlen = sizeof(this->remote_addr);
+  int packet_size = 0;
+  int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
+                         (struct sockaddr*)&(this->remote_addr), &addrlen);
+  if(recvlen == 5 && is_packsyn(*buf)) {
+    std::cout << "PACKSYN received.\n";
+    memcpy(&packet_size, buf + 1, 4);
+    packet_size = ntohl(packet_size);
+    if(packet_size > BUFFSIZE) {
+      packet_size = BUFFSIZE;
+    }
+    this->packet_size = packet_size;
+  }
+  else {
+    send_close();
+  }
+  return;
+}
+
 
 void FileRequest::send_close() {
   char buf = CLOSE;
@@ -113,6 +138,10 @@ bool is_req(char c) {
   return c == REQ;
 }
 
+bool is_packsyn(char c) {
+  return c == (PACK | SYN);
+}
+
 int get_file_size(std::ifstream& infile) {
   if(!infile.is_open()) {
     return -1;
@@ -122,4 +151,13 @@ int get_file_size(std::ifstream& infile) {
   int file_size = infile.gcount();
   infile.seekg(0);
   return file_size;
+}
+
+int get_chunk(std::ifstream& infile, char *buf, int size) {
+  if(!infile || !infile.is_open()) {
+    return 0;
+  }
+
+  infile.read(buf, size);
+  return infile.gcount();
 }

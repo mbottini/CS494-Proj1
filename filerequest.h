@@ -25,21 +25,25 @@ class FileRequest {
     std::string filename;
     std::ifstream infile;
     int file_size;
+    int packet_size;
     int current_packet;
 
     void set_null();
+
   public:
     FileRequest(struct sockaddr_in remote_addr);
     ~FileRequest();
     void send_synack();
     void receive_req();
-    bool open_file();
+    void open_file();
     void send_reqack();
+    void receive_packsyn();
     void send_close();
     friend std::ostream& operator <<(std::ostream& os, const FileRequest& fr);
 };
 
 bool is_req(char c);
+bool is_packsyn(char c);
 int get_file_size(std::ifstream& infile);
 
 #endif
