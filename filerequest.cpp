@@ -69,7 +69,7 @@ void FileRequest::receive_req() {
   int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
                          (struct sockaddr*)&(this->remote_addr), &addrlen);
   if(recvlen > 1 && is_req(*buf)) {
-    filename = buf + 1;
+    filename = std::string(buf + 1, recvlen - 1);
   }
   else {
     send_close();
