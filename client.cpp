@@ -59,31 +59,39 @@ void send_packsyn(int sockfd, struct sockaddr_in *dest_addr,
          (struct sockaddr *)dest_addr, sizeof(*dest_addr));
 }
 
-/*
-bool request_file_packets(int sockfd, struct sockaddr_in *dest_addr,
-                          std::ostream& os) {
-  for(int packet_num = 0;
-      request_file_packet(sockfd, dest_addr, packet_num, os);
-      packet_num++);
-  return true;
-}
-
-bool receive_file_packet(int sockfd, struct sockaddr_in *dest_addr,
+bool receive_pack(int sockfd, struct sockaddr_in *dest_addr,
                          std::ostream& os) {
   char buf[BUFFSIZE];
   unsigned int addrlen = sizeof(*dest_addr);
-  int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
-                         &addrlen);
-  std::cout << "Received " << recvlen << " bytes.\n";
-  if(std::string(buf, 5) == "CLOSE") {
-    std::cout << "Close message received.\n";
+  int packet_num;
+  int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, 
+                         (struct sockaddr *)dest_addr, &addrlen);
+  if(recvlen > 5 && is_pack(*buf)) {
+    os.write(buf + 5, recvlen - 5);
+    std::memcpy(&packet_num, buf + 1, 4);
+    packet_num = ntohl(packet_num);
+    send_packack(sockfd, dest_addr, packet_num);
+  }
+
+  else if(is_close(*buf)) {
     return false;
   }
-  os.write(buf, recvlen);
+
   return true;
 }
 
-*/
+void send_packack(int sockfd, struct sockaddr_in *dest_addr, 
+                  int packet_num) {
+  char buf[5];
+  *buf = PACK | ACK;
+  packet_num = htonl(packet_num);
+  std::memcpy(buf + 1, &packet_num, 4);
+  sendto(sockfd, buf, 5, 0,
+         (struct sockaddr *)dest_addr, sizeof(*dest_addr));
+  return;
+}
+
+
 
 bool is_synack(char c) {
   return c == (SYN | ACK);
@@ -91,6 +99,10 @@ bool is_synack(char c) {
 
 bool is_reqack(char c) {
   return c == (REQ | ACK);
+}
+
+bool is_pack(char c) {
+  return c == PACK;
 }
 
 bool is_close(char c) {
@@ -151,6 +163,7 @@ int main(int argc, char **argv) {
   receive_reqack(sock_handle, &dest_addr);
   std::cout << "Sending PACKSYN\n";
   send_packsyn(sock_handle, &dest_addr);
+  while(receive_pack(sock_handle, &dest_addr, std::cout));
 
   return 0;
 }

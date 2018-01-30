@@ -81,6 +81,7 @@ void FileRequest::open_file() {
   this->infile.open(this->filename);
   if(this->infile.is_open()) {
     this->file_size = get_file_size(infile);
+    this->current_packet = 0;
   }
 }
 
@@ -120,6 +121,38 @@ void FileRequest::receive_packsyn() {
   return;
 }
 
+void FileRequest::send_packs() {
+  std::unique_ptr<char[]> buf(new char[packet_size]);
+  *buf.get() = PACK;
+  int actual_size = 0;
+  int packack_value;
+  while((actual_size = copy_chunk(buf.get() + 5, infile, packet_size - 5)) > 0) {
+    actual_size += 5;
+    int current_packet_network = htonl(this->current_packet);
+    std::memcpy(buf.get() + 1, &current_packet_network, 4);
+    do {
+      sendto(this->sockfd, buf.get(), actual_size, 0, 
+             (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
+      packack_value = receive_packack();
+    } while (packack_value < 0);
+    this->current_packet++;
+  }
+  return;
+}
+
+int FileRequest::receive_packack() {
+  char buf[5];
+  unsigned int addrlen = sizeof(this->remote_addr);
+  int packet_number = -1;
+  int recvlen = recvfrom(this->sockfd, buf, 5, 0,
+                         (struct sockaddr*)&(this->remote_addr), &addrlen);
+  if(recvlen == 5 && is_packack(*buf)) {
+    memcpy(&packet_number, buf + 1, 4);
+    packet_number = ntohl(packet_number);
+  }
+  return packet_number;
+}
+
 
 void FileRequest::send_close() {
   char buf = CLOSE;
@@ -142,6 +175,10 @@ bool is_packsyn(char c) {
   return c == (PACK | SYN);
 }
 
+bool is_packack(char c) {
+  return c == (PACK | ACK);
+}
+
 int get_file_size(std::ifstream& infile) {
   if(!infile.is_open()) {
     return -1;
@@ -153,7 +190,7 @@ int get_file_size(std::ifstream& infile) {
   return file_size;
 }
 
-int get_chunk(std::ifstream& infile, char *buf, int size) {
+int copy_chunk(char *buf, std::ifstream& infile, int size) {
   if(!infile || !infile.is_open()) {
     return 0;
   }

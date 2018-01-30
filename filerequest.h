@@ -5,6 +5,7 @@
 #include <ostream>
 #include <fstream>
 #include <limits>
+#include <memory>      // std::unique_ptr
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -38,12 +39,16 @@ class FileRequest {
     void open_file();
     void send_reqack();
     void receive_packsyn();
+    void send_packs();
+    int receive_packack();
     void send_close();
     friend std::ostream& operator <<(std::ostream& os, const FileRequest& fr);
 };
 
 bool is_req(char c);
 bool is_packsyn(char c);
+bool is_packack(char c);
 int get_file_size(std::ifstream& infile);
+int copy_chunk(char* buf, std::ifstream& infile, int size);
 
 #endif
