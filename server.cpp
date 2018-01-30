@@ -5,7 +5,7 @@
 
 void await_syn(int sockfd, struct sockaddr_in *remote_addr) {
   char buf[BUFFSIZE];
-  unsigned int addrlen = sizeof(*remote_addr);
+  socklen_t addrlen = sizeof(*remote_addr);
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, 
                          (struct sockaddr*)remote_addr, &addrlen);
   if(recvlen == 1 && is_syn(buf[0])) {

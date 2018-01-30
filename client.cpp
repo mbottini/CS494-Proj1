@@ -4,7 +4,7 @@
 #define TIMEOUT 1000
 
 void receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
-  unsigned int addrlen = sizeof(*dest_addr);
+  socklen_t addrlen = sizeof(*dest_addr);
   char buf[BUFFSIZE];
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
                          &addrlen);
@@ -32,7 +32,7 @@ void send_req(int sockfd, struct sockaddr_in *dest_addr, char *filename) {
 }
 
 bool receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
-  unsigned int addrlen = sizeof(*dest_addr);
+  socklen_t addrlen = sizeof(*dest_addr);
   char buf[BUFFSIZE];
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
                          &addrlen);
@@ -62,7 +62,7 @@ void send_packsyn(int sockfd, struct sockaddr_in *dest_addr,
 bool receive_pack(int sockfd, struct sockaddr_in *dest_addr,
                          std::ostream& os) {
   char buf[BUFFSIZE];
-  unsigned int addrlen = sizeof(*dest_addr);
+  socklen_t addrlen = sizeof(*dest_addr);
   int packet_num;
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, 
                          (struct sockaddr *)dest_addr, &addrlen);

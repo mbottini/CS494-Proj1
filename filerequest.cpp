@@ -65,7 +65,7 @@ void FileRequest::send_synack() {
 
 void FileRequest::receive_req() {
   char buf[BUFFSIZE];
-  unsigned int addrlen = sizeof(this->remote_addr);
+  socklen_t addrlen = sizeof(this->remote_addr);
   int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
                          (struct sockaddr*)&(this->remote_addr), &addrlen);
   if(recvlen > 1 && is_req(*buf)) {
@@ -102,7 +102,7 @@ void FileRequest::send_reqack() {
 
 void FileRequest::receive_packsyn() {
   char buf[BUFFSIZE];
-  unsigned int addrlen = sizeof(this->remote_addr);
+  socklen_t addrlen = sizeof(this->remote_addr);
   int packet_size = 0;
   int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
                          (struct sockaddr*)&(this->remote_addr), &addrlen);
@@ -142,7 +142,7 @@ void FileRequest::send_packs() {
 
 int FileRequest::receive_packack() {
   char buf[5];
-  unsigned int addrlen = sizeof(this->remote_addr);
+  socklen_t addrlen = sizeof(this->remote_addr);
   int packet_number = -1;
   int recvlen = recvfrom(this->sockfd, buf, 5, 0,
                          (struct sockaddr*)&(this->remote_addr), &addrlen);
