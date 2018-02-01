@@ -21,8 +21,6 @@ FileRequest::FileRequest(struct sockaddr_in remote_addr) {
     return;
   }
 
-  // TODO?: Give the socket a timeout.
-
   struct timeval tv;
   tv.tv_sec = TIMEOUT;
   tv.tv_usec = 0;
