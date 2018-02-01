@@ -23,9 +23,12 @@ FileRequest::FileRequest(struct sockaddr_in remote_addr) {
 
   // TODO?: Give the socket a timeout.
 
-  int option = 1;
-  if(setsockopt(sockfd, SOL_SOCKET, (SO_RCVTIMEO), (char*)&option, 
-                sizeof(option)) < 0) {
+  struct timeval tv;
+  tv.tv_sec = TIMEOUT;
+  tv.tv_usec = 0;
+
+  if(setsockopt(sockfd, SOL_SOCKET, (SO_RCVTIMEO), &tv,
+                sizeof(tv)) < 0) {
     std::cout << "Unable to set options.\n";
     set_null();
     return;
