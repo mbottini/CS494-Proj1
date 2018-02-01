@@ -3,6 +3,32 @@
 #include <sstream>
 #include <thread>
 
+/* TODO: Require a debug flag to print debug messages.
+ *       Each send-receive pair must be enclosed inside a while(BADTIMEOUT)
+ *       loop, with a send_close() upon failure.
+ *       Something as follows:
+ *       void protocol() {
+ *           int counter = 0;
+ *           bool result = false;
+ *           do {
+ *               fr.do_thing();
+ *               result = fr.receive_thing();
+ *               counter++;
+ *           } while(!result && counter < BADTIMEOUT);
+ *           if(counter >=BADTIMEOUT) {
+ *               return;
+ *           }
+ *           counter = 0;
+ *           
+ *           We can then encapsulate this inside another function.
+ *           bool tryNtimes(std::function<void> send_func, std::function<void> rec_func)
+ *
+ *           Same idea. Try it, and if it returns true, we're good. If not, welp, return false and return.
+ *           The end of the calling function then sends the close.
+ *           It's basically a goto, but we're pretending it's not because it's a function call. lololol
+ */
+
+
 void await_syn(int sockfd, struct sockaddr_in *remote_addr) {
   char buf[BUFFSIZE];
   socklen_t addrlen = sizeof(*remote_addr);

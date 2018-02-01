@@ -21,6 +21,17 @@ FileRequest::FileRequest(struct sockaddr_in remote_addr) {
     return;
   }
 
+  // TODO?: Give the socket a timeout.
+
+  int option = 1;
+  if(setsockopt(sockfd, SOL_SOCKET, (SO_RCVTIMEO), (char*)&option, 
+                sizeof(option)) < 0) {
+    std::cout << "Unable to set options.\n";
+    set_null();
+    return;
+  }
+
+
   // We're now bound, and we can copy remote_addr to this->remote_addr.
 
   this->remote_addr = remote_addr;
@@ -71,6 +82,8 @@ void FileRequest::receive_req() {
   if(recvlen > 1 && is_req(*buf)) {
     filename = std::string(buf + 1, recvlen - 1);
   }
+  /* We're going to make this function produce a bool,, and the calling function
+   * will instead send the close. */
   else {
     send_close();
   }
@@ -115,6 +128,9 @@ void FileRequest::receive_packsyn() {
     }
     this->packet_size = packet_size;
   }
+
+  /* See above. We're going to make this return a bool, so the calling function
+   * will have to send the close. */
   else {
     send_close();
   }
@@ -163,7 +179,8 @@ void FileRequest::send_close() {
 std::ostream& operator <<(std::ostream& os, const FileRequest& fr) {
   os << "Socket handle: " << fr.sockfd << "\n";
   os << "Host port: " << fr.my_addr.sin_port << "\n";
-  os << "Remote address: " << ntohl(fr.remote_addr.sin_addr.s_addr) << "\n";
+  os << "Remote address: " << ip_to_string(ntohl(fr.remote_addr.sin_addr.s_addr)) 
+                           << "\n";
   return os;
 }
 
@@ -198,3 +215,15 @@ int copy_chunk(char *buf, std::ifstream& infile, int size) {
   infile.read(buf, size);
   return infile.gcount();
 }
+
+std::string ip_to_string(int ip) {
+  std::stringstream ss;
+  int mask = 0xFF;
+  for(int i = 0; i < 4; i++) {
+    ss << ((ip >> (4 * i)) & mask);
+    ss << ".";
+  }
+
+  return ss.str().substr(0, ss.str().length() - 1);
+}
+
