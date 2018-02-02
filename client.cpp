@@ -3,7 +3,7 @@
 #define BUFFSIZE 2048
 #define TIMEOUT 1000
 
-void receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
+bool receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
   socklen_t addrlen = sizeof(*dest_addr);
   char buf[BUFFSIZE];
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
@@ -11,8 +11,10 @@ void receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
   if (recvlen == 1 && is_synack(*buf)) {
     std::cout << "Handshake received from port " << ntohs(dest_addr->sin_port)
               << "\n";
+    return true;
   } else {
     std::cout << "Received something else.\n";
+    return false;
   }
 }
 
@@ -158,10 +160,12 @@ int main(int argc, char **argv) {
   */
 
   send_syn(sock_handle, &dest_addr);
-  receive_synack(sock_handle, &dest_addr);
+  if(!receive_synack(sock_handle, &dest_addr))
+    return 0;
   send_req(sock_handle, &dest_addr, argv[3]);
-  receive_reqack(sock_handle, &dest_addr);
-  std::cout << "Sending PACKSYN\n";
+  if(!receive_reqack(sock_handle, &dest_addr)) {
+    return 0;
+  }
   send_packsyn(sock_handle, &dest_addr);
   while(receive_pack(sock_handle, &dest_addr, std::cout));
 
