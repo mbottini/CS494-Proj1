@@ -16,6 +16,8 @@ bool is_syn(char c);
 // Upon handshake, await_syn opens a subordinate thread. Executes the
 // protocol.
 void subordinate_thread(struct sockaddr_in current_addr);
+void seq_subordinate(FileRequest& fr);
+bool try_n_times(std::function<void(void)> send_f, std::function<bool(void)> rec_f, int n);
 
 #endif
 

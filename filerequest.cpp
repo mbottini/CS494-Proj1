@@ -75,7 +75,7 @@ void FileRequest::send_synack() {
   return;
 }
 
-void FileRequest::receive_req() {
+bool FileRequest::receive_req() {
   char buf[BUFFSIZE];
   socklen_t addrlen = sizeof(this->remote_addr);
   int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
@@ -84,19 +84,21 @@ void FileRequest::receive_req() {
     filename = std::string(buf + 1, recvlen - 1);
   }
   /* We're going to make this function produce a bool,, and the calling function
-   * will instead send the close. */
+   * will instead send the close. 
   else {
     send_close();
   }
-  return;
+  */
+  return recvlen > 0;
 }
 
-void FileRequest::open_file() {
+bool FileRequest::open_file() {
   this->infile.open(this->filename);
   if(this->infile.is_open()) {
     this->file_size = get_file_size(infile);
     this->current_packet = 0;
   }
+  return this->infile.is_open();
 }
 
 void FileRequest::send_reqack() {
@@ -114,10 +116,11 @@ void FileRequest::send_reqack() {
          (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
 }
 
-void FileRequest::receive_packsyn() {
+bool FileRequest::receive_packsyn() {
   char buf[BUFFSIZE];
   socklen_t addrlen = sizeof(this->remote_addr);
   int packet_size = 0;
+  bool valid_packet = false;
   int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
                          (struct sockaddr*)&(this->remote_addr), &addrlen);
   if(recvlen == 5 && is_packsyn(*buf)) {
@@ -128,30 +131,43 @@ void FileRequest::receive_packsyn() {
       packet_size = BUFFSIZE;
     }
     this->packet_size = packet_size;
+    valid_packet = true;
   }
 
   /* See above. We're going to make this return a bool, so the calling function
-   * will have to send the close. */
+   * will have to send the close. 
   else {
     send_close();
   }
-  return;
+  */
+  return valid_packet;
 }
 
+// Unfortunately, we can't do try_n_times with this because we're passing
+// an arg. We could write it that way, but it would involve declaring
+// an array for every packet. That would be silly.
 void FileRequest::send_packs() {
   std::unique_ptr<char[]> buf(new char[packet_size]);
   *buf.get() = PACK;
   int actual_size = 0;
   int packack_value;
+  int timeout_count;
   while((actual_size = copy_chunk(buf.get() + 5, infile, packet_size - 5)) > 0) {
     actual_size += 5;
+    timeout_count = 0;
+
     int current_packet_network = htonl(this->current_packet);
     std::memcpy(buf.get() + 1, &current_packet_network, 4);
+
     do {
+      // We've tried to send the packet BADTIMEOUT times, and failed each time.
+      if(timeout_count >= BADTIMEOUT) {
+        return;
+      }
       sendto(this->sockfd, buf.get(), actual_size, 0, 
              (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
       packack_value = receive_packack();
-    } while (packack_value < 0);
+    } while (packack_value != this->current_packet);
     this->current_packet++;
   }
   return;

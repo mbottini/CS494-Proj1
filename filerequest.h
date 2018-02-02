@@ -36,10 +36,10 @@ class FileRequest {
     FileRequest(struct sockaddr_in remote_addr);
     ~FileRequest();
     void send_synack();
-    void receive_req();
-    void open_file();
+    bool receive_req();
+    bool open_file();
     void send_reqack();
-    void receive_packsyn();
+    bool receive_packsyn();
     void send_packs();
     int receive_packack();
     void send_close();

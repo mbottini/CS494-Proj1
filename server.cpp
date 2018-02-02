@@ -49,22 +49,53 @@ void await_syn(int sockfd, struct sockaddr_in *remote_addr) {
 
 void subordinate_thread(struct sockaddr_in current_addr) {
   FileRequest fr(current_addr);
-  std::cout << "Thread started with FileRequest:\n" << fr << "\n";
-  fr.send_synack();
-  fr.receive_req();
-  fr.open_file();
-  fr.send_reqack();
-  fr.receive_packsyn();
-  fr.send_packs();
+  seq_subordinate(fr);
   std::cout << "Sending close.\n";
   fr.send_close();
   std::cout << "Exiting thread.\n";
 }
 
+// We declare another function because GOTO is very bad, but we need it.
+// As a result, we use another function and use `return` as GOTO end.
+void seq_subordinate(FileRequest& fr) {
+
+  std::function<void(void)> f1;
+  std::function<bool(void)> f2;
+
+  f1 = std::bind(&FileRequest::send_synack, &fr);
+  f2 = std::bind(&FileRequest::receive_req, &fr);
+  if(!try_n_times(f1, f2, BADTIMEOUT)) {
+    return;
+  }
+
+  if(!fr.open_file()) {
+    return;
+  }
+
+  f1 = std::bind(&FileRequest::send_reqack, &fr);
+  f2 = std::bind(&FileRequest::receive_packsyn, &fr);
+  if(!try_n_times(f1, f2, BADTIMEOUT)) {
+    return;
+  }
+
+  fr.send_packs();
+  return;
+}
+  
+
 bool is_syn(char c) {
     return c == SYN;
 }
 
+bool try_n_times(std::function<void(void)> send_f, std::function<bool(void)> rec_f, int n) {
+  for(int i = 0; i < n; i++) {
+    send_f();
+    if(rec_f()) {
+      return true;
+    }
+  }
+  return false;
+}
 
 int main(int argv, char **argc) {
   int port;
