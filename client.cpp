@@ -52,6 +52,7 @@ bool receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
 
 void send_packsyn(int sockfd, struct sockaddr_in *dest_addr, 
                   int size = BUFFSIZE) {
+  std::cerr << "Sending PACKSYN request for size " << size << " packets.\n";
   char buf[5];
   *buf = PACK | SYN;
   size = htonl(size);
@@ -71,10 +72,13 @@ bool receive_pack(int sockfd, struct sockaddr_in *dest_addr,
     os.write(buf + 5, recvlen - 5);
     std::memcpy(&packet_num, buf + 1, 4);
     packet_num = ntohl(packet_num);
+    std::cerr << "Received packet " << packet_num << ", size " 
+              << recvlen << "\n";
     send_packack(sockfd, dest_addr, packet_num);
   }
 
   else if(is_close(*buf)) {
+    std::cerr << "Received CLOSE.\n";
     return false;
   }
 
@@ -83,6 +87,7 @@ bool receive_pack(int sockfd, struct sockaddr_in *dest_addr,
 
 void send_packack(int sockfd, struct sockaddr_in *dest_addr, 
                   int packet_num) {
+  std::cerr << "Sending PACKACK for packet " << packet_num << "\n";
   char buf[5];
   *buf = PACK | ACK;
   packet_num = htonl(packet_num);
