@@ -113,7 +113,7 @@ bool is_close(char c) {
 bool hostname_to_ip(char* str, char* port, struct sockaddr *dest_addr) {
   struct addrinfo *ai;
   struct addrinfo hints;
-  std::memset(&hints, NULL, sizeof(hints));
+  std::memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET; 
   hints.ai_socktype = SOCK_DGRAM;
   bool valid_addr = false;

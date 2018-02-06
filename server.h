@@ -5,6 +5,7 @@
 #include <memory>
 #include "filerequest.h"
 #include "commondefs.h"
+#include <functional>
 
 bool operator ==(const struct sockaddr_in &addr1, const struct sockaddr_in &addr);
 
