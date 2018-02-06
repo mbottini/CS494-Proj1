@@ -8,6 +8,8 @@
 #include <fstream>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
 
@@ -30,6 +32,7 @@ bool is_reqack(char c);
 bool is_pack(char c);
 bool is_close(char c);
 
+bool hostname_to_ip(char* str, int &result);
 
-
+std::string ip_to_string(int ip);
 #endif

@@ -13,7 +13,6 @@ bool receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
               << "\n";
     return true;
   } else {
-    std::cout << "Received something else.\n";
     return false;
   }
 }
@@ -111,6 +110,37 @@ bool is_close(char c) {
   return c == CLOSE;
 }
 
+bool hostname_to_ip(char* str, char* port, struct sockaddr *dest_addr) {
+  struct addrinfo *ai;
+  struct addrinfo hints;
+  std::memset(&hints, NULL, sizeof(hints));
+  hints.ai_family = AF_INET; 
+  hints.ai_socktype = SOCK_DGRAM;
+  bool valid_addr = false;
+
+  std::cout << "str = " << str << "\n";
+  std::cout << "port = " << port << "\n";
+  if(getaddrinfo(str, port, &hints, &ai) == 0) {
+    valid_addr = true;
+    *dest_addr = *(ai->ai_addr);
+    std::cout << "Found IP address: " << ip_to_string(((struct sockaddr_in*)dest_addr)->sin_addr.s_addr) << "\n";
+  }
+
+  freeaddrinfo(ai);
+  return valid_addr;
+}
+
+std::string ip_to_string(int ip) {
+  std::stringstream ss;
+  int mask = 0xFF;
+  for(int i = 0; i < 4; i++) {
+    ss << ((ip >> (4 * i)) & mask);
+    ss << ".";
+  }
+
+  return ss.str().substr(0, ss.str().length() - 1);
+}
+
 // Argv contents:
 // 0 : Name of program
 // 1 : IP Address (e.g. 192.168.88.254)
@@ -125,12 +155,12 @@ int main(int argc, char **argv) {
 
   int sock_handle;
 
-  if (argc != 5) {
+  if (argc < 4 || argc > 5) {
     std::cout << "Invalid number of arguments. Exiting.\n";
     exit(1);
   }
 
-  if (!inet_pton(AF_INET, argv[1], &dest_ip_addr)) {
+  if (!hostname_to_ip(argv[1], argv[2], (struct sockaddr*)&dest_addr)) {
     std::cout << "Invalid IP address. Exiting.\n";
     exit(2);
   }
@@ -140,12 +170,6 @@ int main(int argc, char **argv) {
     std::cout << "Invalid port number. Exiting.\n";
     exit(3);
   }
-
-  // Setting various things in dest_addr.
-  std::memset((char *)&dest_addr, 0, sizeof(dest_addr));
-  dest_addr.sin_family = AF_INET;
-  dest_addr.sin_port = htons(dest_port);
-  dest_addr.sin_addr.s_addr = dest_ip_addr;
 
   // Open the socket.
   sock_handle = socket(AF_INET, SOCK_DGRAM, 0);
