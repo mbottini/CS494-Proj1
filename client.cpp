@@ -152,6 +152,8 @@ int main(int argc, char **argv) {
   struct sockaddr_in dest_addr;
   int dest_ip_addr;
   int dest_port;
+  std::ostream *os;
+  std::ofstream outfile;
 
   int sock_handle;
 
@@ -175,13 +177,21 @@ int main(int argc, char **argv) {
   sock_handle = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock_handle < 0) {
     std::cout << "Unable to open socket. Aborting.\n";
-    exit(1);
+    exit(4);
   }
 
-  /*
-  // Open the file for writing.
-  std::ofstream outfile(argv[4]);
-  */
+  if(argc == 5) {
+    outfile.open(argv[4]);
+    if(!outfile) {
+      std::cout << "Unable to open file. Aborting.\n";
+      exit(5);
+    }
+    os = &outfile;
+  }
+
+  else {
+    os = &std::cout;
+  }
 
   send_syn(sock_handle, &dest_addr);
   if(!receive_synack(sock_handle, &dest_addr))
@@ -191,7 +201,7 @@ int main(int argc, char **argv) {
     return 0;
   }
   send_packsyn(sock_handle, &dest_addr);
-  while(receive_pack(sock_handle, &dest_addr, std::cout));
+  while(receive_pack(sock_handle, &dest_addr, *os));
 
   return 0;
 }
