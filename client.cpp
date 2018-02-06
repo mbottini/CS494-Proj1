@@ -27,7 +27,7 @@ void send_req(int sockfd, struct sockaddr_in *dest_addr, char *filename) {
   char buf[BUFFSIZE];
   *buf = REQ;
   std::memcpy(buf + 1, filename, strlen(filename));
-  std::cerr << "REQ " << std::string(buf + 1, strlen(filename)) << "\n";
+  std::cerr << "Requesting " << std::string(buf + 1, strlen(filename)) << "\n";
   sendto(sockfd, buf, 1 + strlen(filename), 0,
          (struct sockaddr *)dest_addr, sizeof(*dest_addr));
 }
