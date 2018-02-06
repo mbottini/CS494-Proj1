@@ -9,7 +9,7 @@ bool receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
                          &addrlen);
   if (recvlen == 1 && is_synack(*buf)) {
-    std::cout << "Handshake received from port " << ntohs(dest_addr->sin_port)
+    std::cerr << "Handshake received from port " << ntohs(dest_addr->sin_port)
               << "\n";
     return true;
   } else {
@@ -27,7 +27,7 @@ void send_req(int sockfd, struct sockaddr_in *dest_addr, char *filename) {
   char buf[BUFFSIZE];
   *buf = REQ;
   std::memcpy(buf + 1, filename, strlen(filename));
-  std::cout << "REQ " << std::string(buf + 1, strlen(filename)) << "\n";
+  std::cerr << "REQ " << std::string(buf + 1, strlen(filename)) << "\n";
   sendto(sockfd, buf, 1 + strlen(filename), 0,
          (struct sockaddr *)dest_addr, sizeof(*dest_addr));
 }
@@ -41,11 +41,11 @@ bool receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
     int file_size;
     std::memcpy(&file_size, buf + 1, 4);
     file_size = ntohl(file_size);
-    std::cout << "File exists, and is size " 
+    std::cerr << "File exists, and is size " 
               << file_size << "\n";
     return true;
   } else if (recvlen == 1 && is_close(*buf)) {
-    std::cout << "Got CLOSE message. File cannot be read.\n";
+    std::cerr << "Got CLOSE message. File cannot be read.\n";
   }
   return false;
 }
@@ -118,12 +118,12 @@ bool hostname_to_ip(char* str, char* port, struct sockaddr *dest_addr) {
   hints.ai_socktype = SOCK_DGRAM;
   bool valid_addr = false;
 
-  std::cout << "str = " << str << "\n";
-  std::cout << "port = " << port << "\n";
+  std::cerr << "str = " << str << "\n";
+  std::cerr << "port = " << port << "\n";
   if(getaddrinfo(str, port, &hints, &ai) == 0) {
     valid_addr = true;
     *dest_addr = *(ai->ai_addr);
-    std::cout << "Found IP address: " << ip_to_string(((struct sockaddr_in*)dest_addr)->sin_addr.s_addr) << "\n";
+    std::cerr << "Found IP address: " << ip_to_string(((struct sockaddr_in*)dest_addr)->sin_addr.s_addr) << "\n";
   }
 
   freeaddrinfo(ai);
@@ -158,32 +158,32 @@ int main(int argc, char **argv) {
   int sock_handle;
 
   if (argc < 4 || argc > 5) {
-    std::cout << "Invalid number of arguments. Exiting.\n";
+    std::cerr << "Invalid number of arguments. Exiting.\n";
     exit(1);
   }
 
   if (!hostname_to_ip(argv[1], argv[2], (struct sockaddr*)&dest_addr)) {
-    std::cout << "Invalid IP address. Exiting.\n";
+    std::cerr << "Invalid IP address. Exiting.\n";
     exit(2);
   }
 
   if (!(std::stringstream(argv[2]) >> dest_port) || dest_port < 0 ||
       dest_port >= 65536) {
-    std::cout << "Invalid port number. Exiting.\n";
+    std::cerr << "Invalid port number. Exiting.\n";
     exit(3);
   }
 
   // Open the socket.
   sock_handle = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock_handle < 0) {
-    std::cout << "Unable to open socket. Aborting.\n";
+    std::cerr << "Unable to open socket. Aborting.\n";
     exit(4);
   }
 
   if(argc == 5) {
     outfile.open(argv[4]);
     if(!outfile) {
-      std::cout << "Unable to open file. Aborting.\n";
+      std::cerr << "Unable to open file. Aborting.\n";
       exit(5);
     }
     os = &outfile;
