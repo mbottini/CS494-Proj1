@@ -128,14 +128,8 @@ bool hostname_to_ip(char* str, char* port, struct sockaddr *dest_addr) {
   if(getaddrinfo(str, port, &hints, &ai) == 0) {
     valid_addr = true;
     *dest_addr = *(ai->ai_addr);
-    // std::cerr << "Found IP address: " << ip_to_string(((struct sockaddr_in*)dest_addr)->sin_addr.s_addr) << "\n";
-    std::cerr << "Corresponding addresses:\n";
-    int counter = 0;
-    for(struct addrinfo *current = ai; current != NULL; current = current->ai_next) {
-      std::cerr << "Address " << counter << ": " << ip_to_string(ntohl(((struct sockaddr_in*)current->ai_addr)->sin_addr.s_addr)) << "\n";
-      counter++;
-    }
-
+    int ip_addr = ntohl(((struct sockaddr_in*)dest_addr)->sin_addr.s_addr);
+    std::cerr << "Found IP address: " << ip_to_string(ip_addr) << "\n";
   }
 
   freeaddrinfo(ai);
