@@ -213,35 +213,20 @@ int main(int argc, char **argv) {
     os = &std::cout;
   }
 
-  std::function<void(void)> f1;
-  std::function<rec_outcome(void)> f2;
+  std::function<void(void)> send_f;
+  std::function<rec_outcome(void)> rec_f;
 
-  f1 = std::bind(send_syn, sock_handle, &dest_addr);
-  f2 = std::bind(receive_synack, sock_handle, &dest_addr);
+  send_f = std::bind(send_syn, sock_handle, &dest_addr);
+  rec_f = std::bind(receive_synack, sock_handle, &dest_addr);
 
-  /*
-  send_syn(sock_handle, &dest_addr);
-  if(!receive_synack(sock_handle, &dest_addr))
-    return 0;
-  */
-
-  if(!try_n_times_ternary(f1, f2, BADTIMEOUT)) {
+  if(!try_n_times_ternary(send_f, rec_f, BADTIMEOUT)) {
     return 0;
   }
 
-  char *str = argv[3];
+  send_f = std::bind(send_req, sock_handle, &dest_addr, argv[3]);
+  rec_f = std::bind(&receive_reqack, sock_handle, &dest_addr);
 
-  f1 = std::bind(send_req, sock_handle, &dest_addr, str);
-  f2 = std::bind(&receive_reqack, sock_handle, &dest_addr);
-
-  /*
-  send_req(sock_handle, &dest_addr, argv[3]);
-  if(!receive_reqack(sock_handle, &dest_addr)) {
-    return 0;
-  }
-  */
-
-  if(!try_n_times_ternary(f1, f2, BADTIMEOUT)) {
+  if(!try_n_times_ternary(send_f, rec_f, BADTIMEOUT)) {
     return 0;
   }
 
