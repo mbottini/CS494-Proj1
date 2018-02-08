@@ -1,5 +1,6 @@
 CC=clang++
-CFLAGS=-std=c++11 -l pthread
+CFLAGS=-std=c++11 
+MULTITHREAD=-l pthread
 COMPILE=$(CC) $(CFLAGS)
 
 all: client server
@@ -8,7 +9,7 @@ client: client.o common.o
 	$(COMPILE) client.o common.o -o client
 
 server: server.o common.o filerequest.o
-	$(COMPILE) server.o common.o filerequest.o -o server
+	$(COMPILE) $(MULTITHREAD) server.o common.o filerequest.o -o server
 
 server.o: server.cpp 
 	$(COMPILE) -c server.cpp
