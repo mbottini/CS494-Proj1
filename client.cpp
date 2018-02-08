@@ -6,7 +6,7 @@ void send_syn(int sockfd, struct sockaddr_in *dest_addr) {
          sizeof(*dest_addr));
 }
 
-bool receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
+rec_outcome receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
   socklen_t addrlen = sizeof(*dest_addr);
   char buf[BUFFSIZE];
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
@@ -14,9 +14,13 @@ bool receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
   if (recvlen == 1 && is_synack(*buf)) {
     std::cerr << "Handshake received from port " << ntohs(dest_addr->sin_port)
               << "\n";
-    return true;
-  } else {
-    return false;
+    return REC_SUCCESS;
+  } 
+  if(recvlen == -1) {
+    return REC_TIMEOUT;
+  }
+  else {
+    return REC_FAILURE;
   }
 }
 
@@ -29,7 +33,7 @@ void send_req(int sockfd, struct sockaddr_in *dest_addr, const char *filename) {
          (struct sockaddr *)dest_addr, sizeof(*dest_addr));
 }
 
-bool receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
+rec_outcome receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
   socklen_t addrlen = sizeof(*dest_addr);
   char buf[BUFFSIZE];
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
@@ -40,11 +44,15 @@ bool receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
     file_size = ntohl(file_size);
     std::cerr << "File exists, and is size " 
               << file_size << "\n";
-    return true;
-  } else if (recvlen == 1 && is_close(*buf)) {
-    std::cerr << "Got CLOSE message. File cannot be read.\n";
+    return REC_SUCCESS;;
+  } 
+  if(recvlen == -1) {
+    return REC_TIMEOUT;
   }
-  return false;
+  else {
+    std::cerr << "File cannot be read.\n";
+    return REC_FAILURE;
+  }
 }
 
 void send_packsyn(int sockfd, struct sockaddr_in *dest_addr, 
@@ -206,7 +214,7 @@ int main(int argc, char **argv) {
   }
 
   std::function<void(void)> f1;
-  std::function<bool(void)> f2;
+  std::function<rec_outcome(void)> f2;
 
   f1 = std::bind(send_syn, sock_handle, &dest_addr);
   f2 = std::bind(receive_synack, sock_handle, &dest_addr);
@@ -217,7 +225,7 @@ int main(int argc, char **argv) {
     return 0;
   */
 
-  if(!try_n_times(f1, f2, BADTIMEOUT)) {
+  if(!try_n_times_ternary(f1, f2, BADTIMEOUT)) {
     return 0;
   }
 
@@ -233,7 +241,7 @@ int main(int argc, char **argv) {
   }
   */
 
-  if(!try_n_times(f1, f2, BADTIMEOUT)) {
+  if(!try_n_times_ternary(f1, f2, BADTIMEOUT)) {
     return 0;
   }
 

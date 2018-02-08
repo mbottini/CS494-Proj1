@@ -4,14 +4,23 @@ COMPILE=$(CC) $(CFLAGS)
 
 all: client server
 
-server: server.cpp filerequest.cpp common.o
-	$(COMPILE) common.o server.cpp filerequest.cpp -o server
+client: client.o common.o
+	$(COMPILE) client.o common.o -o client
 
-client: client.cpp common.o
-	$(COMPILE) common.o client.cpp -o client
+server: server.o common.o filerequest.o
+	$(COMPILE) server.o common.o filerequest.o -o server
 
-common.o:
+server.o: server.cpp 
+	$(COMPILE) -c server.cpp
+
+filerequest.o:
+	$(COMPILE) -c filerequest.cpp
+
+client.o: client.cpp 
+	$(COMPILE) -c client.cpp
+
+common.o: common.cpp
 	$(COMPILE) -c common.cpp
 
 clean:
-	rm server client
+	rm server client *.o

@@ -16,10 +16,10 @@
 #include "commondefs.h"
 
 void send_syn(int sockfd, struct sockaddr_in *remote_addr);
-bool receive_synack(int sockfd, struct sockaddr_in *remote_addr);
+rec_outcome receive_synack(int sockfd, struct sockaddr_in *remote_addr);
 void send_req(int sockfd, struct sockaddr_in *remote_addr, 
               const char *filename);
-bool receive_reqack(int sockfd, struct sockaddr_in *remote_addr);
+rec_outcome receive_reqack(int sockfd, struct sockaddr_in *remote_addr);
 bool receive_pack(int sockfd, struct sockaddr_in *remote_addr, 
                   std::ostream& os);
 void send_packack(int sockfd, struct sockaddr_in *remote_addr, int packet_num);
