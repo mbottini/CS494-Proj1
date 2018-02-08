@@ -15,8 +15,6 @@
 
 #include "commondefs.h"
 
-#define BUFFSIZE 2048
-
 void send_syn(int sockfd, struct sockaddr_in *remote_addr);
 bool receive_synack(int sockfd, struct sockaddr_in *remote_addr);
 void send_req(int sockfd, struct sockaddr_in *remote_addr, 

@@ -4,6 +4,8 @@
 #include <functional>
 
 #define BUFFSIZE 2048
+#define TIMEOUT 1
+#define BADTIMEOUT 5
 
 #define CLOSE   0b0 // Close.
 #define SYN     0b1 // Handshake.

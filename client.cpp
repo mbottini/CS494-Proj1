@@ -1,8 +1,5 @@
 #include "client.h"
 
-#define BUFFSIZE 2048
-#define TIMEOUT 1
-
 void send_syn(int sockfd, struct sockaddr_in *dest_addr) {
   char buf = SYN;
   sendto(sockfd, &buf, 1, 0, (struct sockaddr *)dest_addr,
@@ -23,7 +20,7 @@ bool receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
   }
 }
 
-void send_req(int sockfd, struct sockaddr_in *dest_addr, char *filename) {
+void send_req(int sockfd, struct sockaddr_in *dest_addr, const char *filename) {
   char buf[BUFFSIZE];
   *buf = REQ;
   std::memcpy(buf + 1, filename, strlen(filename));
@@ -208,13 +205,38 @@ int main(int argc, char **argv) {
     os = &std::cout;
   }
 
+  std::function<void(void)> f1;
+  std::function<bool(void)> f2;
+
+  f1 = std::bind(send_syn, sock_handle, &dest_addr);
+  f2 = std::bind(receive_synack, sock_handle, &dest_addr);
+
+  /*
   send_syn(sock_handle, &dest_addr);
   if(!receive_synack(sock_handle, &dest_addr))
     return 0;
+  */
+
+  if(!try_n_times(f1, f2, BADTIMEOUT)) {
+    return 0;
+  }
+
+  char *str = argv[3];
+
+  f1 = std::bind(send_req, sock_handle, &dest_addr, str);
+  f2 = std::bind(&receive_reqack, sock_handle, &dest_addr);
+
+  /*
   send_req(sock_handle, &dest_addr, argv[3]);
   if(!receive_reqack(sock_handle, &dest_addr)) {
     return 0;
   }
+  */
+
+  if(!try_n_times(f1, f2, BADTIMEOUT)) {
+    return 0;
+  }
+
   send_packsyn(sock_handle, &dest_addr);
   while(receive_pack(sock_handle, &dest_addr, *os));
 

@@ -15,10 +15,6 @@
 
 #include "commondefs.h"
 
-#define TIMEOUT 1
-#define BADTIMEOUT 5
-#define BUFFSIZE 2048
-
 class FileRequest {
   private:
     int sockfd;
