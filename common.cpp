@@ -14,17 +14,17 @@ bool try_n_times(std::function<void(void)> send_f,
 
 // Terminates upon receiving a positive value.
 // Negative values denote timeout. Positive is a close() packet.
-bool try_n_times_ternary(std::function<void(void)> send_f, 
+rec_outcome try_n_times_ternary(std::function<void(void)> send_f, 
                          std::function<rec_outcome(void)> rec_f, int n) {
   for(int i = 0; i < n; i++) {
     send_f();
     int result = rec_f();
     if(result == REC_SUCCESS) {
-      return true;
+      return REC_SUCCESS;
     }
     if(result == REC_FAILURE) {
-      return false;
+      return REC_FAILURE;
     }
   }
-  return false;
+  return REC_TIMEOUT;;
 }

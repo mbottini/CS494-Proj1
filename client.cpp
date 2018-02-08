@@ -215,18 +215,31 @@ int main(int argc, char **argv) {
 
   std::function<void(void)> send_f;
   std::function<rec_outcome(void)> rec_f;
+  rec_outcome result;
 
   send_f = std::bind(send_syn, sock_handle, &dest_addr);
   rec_f = std::bind(receive_synack, sock_handle, &dest_addr);
 
-  if(!try_n_times_ternary(send_f, rec_f, BADTIMEOUT)) {
+  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+  if(result == REC_FAILURE) {
+    std::cerr << "Request received failure message.\n";
+    return 0;
+  }
+  else if(result == REC_TIMEOUT) {
+    std::cerr << "Request timed out.\n";
     return 0;
   }
 
   send_f = std::bind(send_req, sock_handle, &dest_addr, argv[3]);
   rec_f = std::bind(&receive_reqack, sock_handle, &dest_addr);
 
-  if(!try_n_times_ternary(send_f, rec_f, BADTIMEOUT)) {
+  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+  if(result == REC_FAILURE) {
+    std::cerr << "Request received failure message.\n";
+    return 0;
+  }
+  else if(result == REC_TIMEOUT) {
+    std::cerr << "Request timed out.\n";
     return 0;
   }
 
