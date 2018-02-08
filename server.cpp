@@ -87,16 +87,6 @@ bool is_syn(char c) {
     return c == SYN;
 }
 
-bool try_n_times(std::function<void(void)> send_f, std::function<bool(void)> rec_f, int n) {
-  for(int i = 0; i < n; i++) {
-    send_f();
-    if(rec_f()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 int main(int argv, char **argc) {
   int port;
   struct sockaddr_in my_addr;
