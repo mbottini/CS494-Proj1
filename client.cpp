@@ -1,7 +1,13 @@
 #include "client.h"
 
 #define BUFFSIZE 2048
-#define TIMEOUT 1000
+#define TIMEOUT 1
+
+void send_syn(int sockfd, struct sockaddr_in *dest_addr) {
+  char buf = SYN;
+  sendto(sockfd, &buf, 1, 0, (struct sockaddr *)dest_addr,
+         sizeof(*dest_addr));
+}
 
 bool receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
   socklen_t addrlen = sizeof(*dest_addr);
@@ -15,12 +21,6 @@ bool receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
   } else {
     return false;
   }
-}
-
-void send_syn(int sockfd, struct sockaddr_in *dest_addr) {
-  char buf = SYN;
-  sendto(sockfd, &buf, 1, 0, (struct sockaddr *)dest_addr,
-         sizeof(*dest_addr));
 }
 
 void send_req(int sockfd, struct sockaddr_in *dest_addr, char *filename) {
@@ -97,8 +97,6 @@ void send_packack(int sockfd, struct sockaddr_in *dest_addr,
   return;
 }
 
-
-
 bool is_synack(char c) {
   return c == (SYN | ACK);
 }
@@ -152,6 +150,8 @@ std::string ip_to_string(int ip) {
 // 1 : IP Address (e.g. 192.168.88.254)
 // 2 : Port (16-bit integer)
 // 3 : File path on the server.
+// 4 : Optional path where you want to save the output.
+//     Note that if omitted, the program prints to stdout.
 
 int main(int argc, char **argv) {
   // Server socket.
@@ -184,6 +184,15 @@ int main(int argc, char **argv) {
   if (sock_handle < 0) {
     std::cerr << "Unable to open socket. Aborting.\n";
     exit(4);
+  }
+
+  // Set the timeout.
+  struct timeval tv;
+  tv.tv_sec = TIMEOUT;
+  tv.tv_usec = 0;
+  if(setsockopt(sock_handle, SOL_SOCKET, (SO_RCVTIMEO), &tv,
+                sizeof(tv)) < 0) {
+    std::cerr << "Unable to set options. Aborting\n";
   }
 
   if(argc == 5) {
