@@ -47,6 +47,5 @@ bool is_packsyn(char c);
 bool is_packack(char c);
 int get_file_size(std::ifstream& infile);
 int copy_chunk(char* buf, std::ifstream& infile, int size);
-std::string ip_to_string(int ip);
 
 #endif

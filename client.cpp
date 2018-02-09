@@ -139,17 +139,6 @@ bool hostname_to_ip(char* str, char* port, struct sockaddr *dest_addr) {
   return valid_addr;
 }
 
-std::string ip_to_string(int ip) {
-  std::stringstream ss;
-  int mask = 0xFF;
-  for(int i = 3; i >= 0; i--) {
-    ss << ((ip >> (8 * i)) & mask);
-    ss << ".";
-  }
-
-  return ss.str().substr(0, ss.str().length() - 1);
-}
-
 // Argv contents:
 // 0 : Name of program
 // 1 : IP Address (e.g. 192.168.88.254)

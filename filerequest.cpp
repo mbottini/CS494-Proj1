@@ -232,15 +232,3 @@ int copy_chunk(char *buf, std::ifstream& infile, int size) {
   infile.read(buf, size);
   return infile.gcount();
 }
-
-std::string ip_to_string(int ip) {
-  std::stringstream ss;
-  int mask = 0xFF;
-  for(int i = 0; i < 4; i++) {
-    ss << ((ip >> (4 * i)) & mask);
-    ss << ".";
-  }
-
-  return ss.str().substr(0, ss.str().length() - 1);
-}
-

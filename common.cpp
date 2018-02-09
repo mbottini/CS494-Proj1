@@ -28,3 +28,15 @@ rec_outcome try_n_times_ternary(std::function<void(void)> send_f,
   }
   return REC_TIMEOUT;;
 }
+
+std::string ip_to_string(int ip) {
+  std::stringstream ss;
+  int mask = 0xFF;
+  for(int i = 3; i >= 0; i--) {
+    ss << ((ip >> (8 * i)) & mask);
+    ss << ".";
+  }
+
+  return ss.str().substr(0, ss.str().length() - 1);
+}
+
