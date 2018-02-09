@@ -27,6 +27,7 @@ class FileRequest {
     int current_packet;
 
     void set_null();
+    void send_pack(char* buf, int actual_size);
 
   public:
     FileRequest(struct sockaddr_in remote_addr);
@@ -36,8 +37,8 @@ class FileRequest {
     bool open_file();
     void send_reqack();
     rec_outcome receive_packsyn();
-    void send_packs();
-    int receive_packack();
+    rec_outcome send_packs();
+    rec_outcome receive_packack();
     void send_close();
     friend std::ostream& operator <<(std::ostream& os, const FileRequest& fr);
 };

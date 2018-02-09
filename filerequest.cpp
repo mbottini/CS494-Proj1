@@ -141,7 +141,7 @@ rec_outcome FileRequest::receive_packsyn() {
 // Unfortunately, we can't do try_n_times with this because we're passing
 // an arg. We could write it that way, but it would involve declaring
 // an array for every packet. That would be silly.
-void FileRequest::send_packs() {
+rec_outcome FileRequest::send_packs() {
   std::unique_ptr<char[]> buf(new char[packet_size]);
   *buf.get() = PACK;
   int actual_size = 0;
@@ -154,21 +154,26 @@ void FileRequest::send_packs() {
     int current_packet_network = htonl(this->current_packet);
     std::memcpy(buf.get() + 1, &current_packet_network, 4);
 
-    do {
-      // We've tried to send the packet BADTIMEOUT times, and failed each time.
-      if(timeout_count >= BADTIMEOUT) {
-        return;
-      }
-      sendto(this->sockfd, buf.get(), actual_size, 0, 
-             (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
-      packack_value = receive_packack();
-    } while (packack_value != this->current_packet);
+    std::function<void(void)> send_f =
+        std::bind(&FileRequest::send_pack, this, buf.get(), actual_size);
+    std::function<rec_outcome(void)> rec_f =
+        std::bind(&FileRequest::receive_packack, this);
+    rec_outcome result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+    if(result != REC_SUCCESS) {
+      return result;
+    }
+
     this->current_packet++;
   }
-  return;
+  return REC_SUCCESS;
 }
 
-int FileRequest::receive_packack() {
+void FileRequest::send_pack(char* buf, int actual_size) {
+  sendto(this->sockfd, buf, actual_size, 0, 
+         (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
+}
+
+rec_outcome FileRequest::receive_packack() {
   char buf[5];
   socklen_t addrlen = sizeof(this->remote_addr);
   int packet_number = -1;
@@ -177,8 +182,15 @@ int FileRequest::receive_packack() {
   if(recvlen == 5 && is_packack(*buf)) {
     memcpy(&packet_number, buf + 1, 4);
     packet_number = ntohl(packet_number);
+    if(packet_number == this->current_packet) {
+      return REC_SUCCESS;
+    }
   }
-  return packet_number;
+  if(recvlen == -1) {
+    return REC_TIMEOUT;
+  }
+
+  return REC_FAILURE;
 }
 
 
