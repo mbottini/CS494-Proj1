@@ -27,9 +27,6 @@ clean:
 	rm server client *.o
 
 test: client server
-	$(info Starting server...)
 	./server 5954 &
-	$(info Starting client...)
 	./client localhost 5954 /home/mike/stuff.hs
-	$(info Killing server...)
 	pkill server
