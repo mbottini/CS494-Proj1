@@ -23,6 +23,12 @@ clientmain.o: clientmain.cpp
 client.o: client.cpp 
 	$(COMPILE) -c client.cpp
 
+shitty_client.o: shitty_client.cpp
+	$(COMPILE) -c shitty_client.cpp
+
+shitty: shitty_client.o client.o common.o
+	$(COMPILE) $(MULTITHREAD) shitty_client.o client.o common.o -o shitty
+
 common.o: common.cpp
 	$(COMPILE) -c common.cpp
 
@@ -32,4 +38,9 @@ clean:
 test: client server
 	./server 5954 &
 	./client localhost 5954 /home/mike/stuff.hs
+	pkill server
+
+stest: server shitty
+	./server 5954 > /dev/null &
+	./shitty localhost 5954 /home/mike/stuff.hs 2> /dev/null
 	pkill server

@@ -1,177 +1,257 @@
 #include "client.h"
-
-#define BUFFSIZE 2048
-#define TIMEOUT 1000
-
-// TODO: Rewrite receive_pack to call send_packack in another function */
-
-void receive_synack(int sockfd, struct sockaddr_in *dest_addr) {
-  socklen_t addrlen = sizeof(*dest_addr);
-  char buf[BUFFSIZE];
-  int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
-                         &addrlen);
-  if (recvlen == 1 && is_synack(*buf)) {
-    std::cout << "Handshake received from port " << ntohs(dest_addr->sin_port)
-              << "\n";
-  } else {
-    std::cout << "Received something else.\n";
-  }
-}
-
-void send_syn(int sockfd, struct sockaddr_in *dest_addr) {
-  char buf = SYN;
-  sendto(sockfd, &buf, 1, 0, (struct sockaddr *)dest_addr,
-         sizeof(*dest_addr));
-}
-
-void send_req(int sockfd, struct sockaddr_in *dest_addr, char *filename) {
-  char buf[BUFFSIZE];
-  *buf = REQ;
-  std::memcpy(buf + 1, filename, strlen(filename));
-  std::cout << "REQ " << std::string(buf + 1, strlen(filename)) << "\n";
-  sendto(sockfd, buf, 1 + strlen(filename), 0,
-         (struct sockaddr *)dest_addr, sizeof(*dest_addr));
-}
-
-bool receive_reqack(int sockfd, struct sockaddr_in *dest_addr) {
-  socklen_t addrlen = sizeof(*dest_addr);
-  char buf[BUFFSIZE];
-  int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
-                         &addrlen);
-  if (recvlen == 5 && is_reqack(*buf)) {
-    int file_size;
-    std::memcpy(&file_size, buf + 1, 4);
-    file_size = ntohl(file_size);
-    std::cout << "File exists, and is size " 
-              << file_size << "\n";
-    return true;
-  } else if (recvlen == 1 && is_close(*buf)) {
-    std::cout << "Got CLOSE message. File cannot be read.\n";
-  }
-  return false;
-}
-
-void send_packsyn(int sockfd, struct sockaddr_in *dest_addr, 
-                  int size = BUFFSIZE) {
-  char buf[5];
-  *buf = PACK | SYN;
-  size = htonl(size);
-  memcpy(buf + 1, &size, 4);
-  sendto(sockfd, buf, 5, 0,
-         (struct sockaddr *)dest_addr, sizeof(*dest_addr));
-}
-
-bool receive_pack(int sockfd, struct sockaddr_in *dest_addr,
-                         std::ostream& os) {
-  char buf[BUFFSIZE];
-  socklen_t addrlen = sizeof(*dest_addr);
-  int packet_num;
-  int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, 
-                         (struct sockaddr *)dest_addr, &addrlen);
-  if(recvlen > 5 && is_pack(*buf)) {
-    os.write(buf + 5, recvlen - 5);
-    std::memcpy(&packet_num, buf + 1, 4);
-    packet_num = ntohl(packet_num);
-    send_packack(sockfd, dest_addr, packet_num);
-  }
-
-  else if(is_close(*buf)) {
-    return false;
-  }
-
-  return true;
-}
-
-void send_packack(int sockfd, struct sockaddr_in *dest_addr, 
-                  int packet_num) {
-  char buf[5];
-  *buf = PACK | ACK;
-  packet_num = htonl(packet_num);
-  std::memcpy(buf + 1, &packet_num, 4);
-  sendto(sockfd, buf, 5, 0,
-         (struct sockaddr *)dest_addr, sizeof(*dest_addr));
-  return;
-}
-
-
-
-bool is_synack(char c) {
-  return c == (SYN | ACK);
-}
-
-bool is_reqack(char c) {
-  return c == (REQ | ACK);
-}
-
-bool is_pack(char c) {
-  return c == PACK;
-}
-
-bool is_close(char c) {
-  return c == CLOSE;
-}
+#include <thread>
+#include <future>
+#include <functional>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 // Argv contents:
 // 0 : Name of program
 // 1 : IP Address (e.g. 192.168.88.254)
 // 2 : Port (16-bit integer)
 // 3 : File path on the server.
+// 4 : Optional path where you want to save the output.
+//     Note that if omitted,the program prints to stdout.
+
+int create_socket(int timeout) {
+  // Open the socket.
+  int sock_handle = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock_handle < 0) {
+    std::cerr << "Unable to open socket. Aborting.\n";
+    return -1;
+  }
+
+  // Bind the socket.
+  struct sockaddr_in my_addr;
+  std::memset((char *)&my_addr, 0, sizeof(my_addr));
+  my_addr.sin_family = AF_INET;
+  my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  my_addr.sin_port = 0;
+
+  if (bind(sock_handle, (struct sockaddr *)&my_addr, sizeof(my_addr)) < 0) {
+    std::cerr << "Unable to bind socket. Aborting.\n";
+    return -1;
+  }
+
+  // Set the timeout.
+  struct timeval tv;
+  tv.tv_sec = timeout;
+  tv.tv_usec = 0;
+  if(setsockopt(sock_handle, SOL_SOCKET, (SO_RCVTIMEO), &tv,
+                sizeof(tv)) < 0) {
+    std::cerr << "Unable to set options. Aborting\n";
+    return -1;
+  }
+
+  return sock_handle;
+}
+
+void send_shitty_syn(int sockfd, struct sockaddr_in *dest_addr) {
+  char buf = 0;
+  sendto(sockfd, &buf, 1, 0, (struct sockaddr *)dest_addr,
+         sizeof(*dest_addr));
+}
+
+rec_outcome receive_close(int sock_handle, struct sockaddr_in *dest_addr) {
+  socklen_t addrlen = sizeof(*dest_addr);
+  char buf[BUFFSIZE];
+  int recvlen = recvfrom(sock_handle, buf, BUFFSIZE, 0, (struct sockaddr *)dest_addr,
+                         &addrlen);
+  if (recvlen == 1 && is_close(*buf)) {
+    return REC_SUCCESS;
+  } 
+  if(recvlen == -1) {
+    return REC_TIMEOUT;
+  }
+  else {
+    return REC_FAILURE;
+  }
+}
+
+bool test_bad_handshake(int sockfd, struct sockaddr_in dest_addr) {
+  std::cerr << "bad_handshake: " << &dest_addr << "\n";
+
+  send_shitty_syn(sockfd, &dest_addr);
+  return receive_synack(sockfd, &dest_addr) == REC_TIMEOUT;
+}
+
+bool test_no_response_handshake(int sockfd, struct sockaddr_in dest_addr) {
+  send_syn(sockfd, &dest_addr);
+  rec_outcome result;
+
+  for(int i = 0; i < BADTIMEOUT; i++) {
+    result = receive_synack(sockfd, &dest_addr);
+    if(result == REC_SUCCESS) {
+      std::cerr << "no_response_handshake: Retransmit #" << i << "\n";
+    }
+    else {
+      std:
+      return false;
+    }
+  }
+
+  return receive_close(sockfd, &dest_addr);
+}
+
+bool test_bad_req(int sockfd, struct sockaddr_in dest_addr) {
+  send_syn(sockfd, &dest_addr);
+  rec_outcome result = receive_synack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_shitty_syn(sockfd, &dest_addr);
+  return receive_close(sockfd, &dest_addr);
+}
+
+bool test_bad_filename(int sockfd, struct sockaddr_in dest_addr) {
+  send_syn(sockfd, &dest_addr);
+  rec_outcome result = receive_synack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_req(sockfd, &dest_addr, "ajhksdgbaj");
+  return receive_close(sockfd, &dest_addr);
+}
+
+bool test_no_response_filename(int sockfd, struct sockaddr_in dest_addr) {
+  send_syn(sockfd, &dest_addr);
+  rec_outcome result = receive_synack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+
+  for(int i = 0; i < BADTIMEOUT; i++) {
+    result = receive_reqack(sockfd, &dest_addr);
+    if(result == REC_SUCCESS) {
+      std::cerr << "no_response_filename: Retransmit #" << i << "\n";
+    }
+    else {
+      return false;
+    }
+  }
+
+  return receive_close(sockfd, &dest_addr) == REC_SUCCESS;
+}
+
+bool test_bad_packsyn1(int sockfd, struct sockaddr_in dest_addr) {
+  send_syn(sockfd, &dest_addr);
+  rec_outcome result = receive_synack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+
+  result = receive_reqack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_shitty_syn(sockfd, &dest_addr);
+  return receive_close(sockfd, &dest_addr) == REC_SUCCESS;
+}
+
+bool test_bad_packsyn2(int sockfd, struct sockaddr_in dest_addr) {
+  send_syn(sockfd, &dest_addr);
+  rec_outcome result = receive_synack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+
+  result = receive_reqack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_packsyn(sockfd, &dest_addr, 3);
+  return receive_close(sockfd, &dest_addr) == REC_SUCCESS;
+}
+
+/*
+bool test_no_response_packsyn(int sockfd, struct sockaddr_in dest_addr) {
+  send_syn(sockfd, &dest_addr);
+  rec_outcome result = receive_synack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+
+  result = receive_reqack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_packsyn(sockfd, &dest_addr, BUFFSIZE);
+
+  for(int i = 0; i < BADTIMEOUT; i++) {
+    result = receive_pack;
+*/
+  
+
+  
+
+
 
 int main(int argc, char **argv) {
-  // Server socket.
   struct sockaddr_in dest_addr;
-  int dest_ip_addr;
-  int dest_port;
+  std::ostream *os = &std::cout;
+  std::unordered_map<std::string, std::packaged_task<bool(void)>> p_task_map;
+  std::vector<std::thread> thread_vec;
+  std::unordered_map<std::string, std::future<bool>> result_map;
 
-  int sock_handle;
-
-  if (argc != 5) {
-    std::cout << "Invalid number of arguments. Exiting.\n";
+  if (argc < 4 || argc > 5) {
+    std::cerr << "Invalid number of arguments. Exiting.\n";
     exit(1);
   }
 
-  if (!inet_pton(AF_INET, argv[1], &dest_ip_addr)) {
-    std::cout << "Invalid IP address. Exiting.\n";
+  if (!hostname_to_ip(argv[1], argv[2], (struct sockaddr*)&dest_addr)) {
+    std::cerr << "Invalid IP address. Exiting.\n";
     exit(2);
   }
 
-  if (!(std::stringstream(argv[2]) >> dest_port) || dest_port < 0 ||
-      dest_port >= 65536) {
-    std::cout << "Invalid port number. Exiting.\n";
-    exit(3);
+  p_task_map.emplace("bad handshake", 
+                     std::bind(test_bad_handshake, create_socket(1), 
+                     dest_addr));
+  p_task_map.emplace("no response after handshake",
+                     std::bind(test_no_response_handshake, create_socket(10),
+                     dest_addr)); 
+  p_task_map.emplace("bad req",
+                     std::bind(test_bad_req, create_socket(1), 
+                     dest_addr)); 
+  p_task_map.emplace("bad filename",
+                     std::bind(test_bad_filename, create_socket(1), 
+                     dest_addr)); 
+  p_task_map.emplace("no response after filename",
+                     std::bind(test_no_response_filename, create_socket(10),
+                     dest_addr));
+  p_task_map.emplace("bad packsyn packet",
+                     std::bind(test_bad_packsyn1, create_socket(1),
+                     dest_addr));
+  p_task_map.emplace("bad packsyn size",
+                     std::bind(test_bad_packsyn2, create_socket(1),
+                     dest_addr));
+  
+  for(auto it = p_task_map.begin(); it != p_task_map.end(); ++it) {
+    result_map.emplace(it->first, it->second.get_future());
+    thread_vec.push_back(std::thread(std::move(it->second)));
   }
 
-  // Setting various things in dest_addr.
-  std::memset((char *)&dest_addr, 0, sizeof(dest_addr));
-  dest_addr.sin_family = AF_INET;
-  dest_addr.sin_port = htons(dest_port);
-  dest_addr.sin_addr.s_addr = dest_ip_addr;
-
-  // Open the socket.
-  sock_handle = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sock_handle < 0) {
-    std::cout << "Unable to open socket. Aborting.\n";
-    exit(1);
+  for(auto it = thread_vec.begin(); it != thread_vec.end(); ++it) {
+    it->join();
   }
 
-  /*
-  // Open the file for writing.
-  std::ofstream outfile(argv[4]);
-  */
-
-  send_syn(sock_handle, &dest_addr);
-  receive_synack(sock_handle, &dest_addr);
-  std::cout << "Received a synack, but I'm going to ignore it..\n";
-  receive_synack(sock_handle, &dest_addr);
-  std::cout << "Okay, fine, I'll use this synack.\n";
-  send_req(sock_handle, &dest_addr, argv[3]);
-  receive_reqack(sock_handle, &dest_addr);
-  std::cout << "Received a reqack, but I'm going to ignore it..\n";
-  receive_reqack(sock_handle, &dest_addr);
-  std::cout << "Okay, fine, I'll use this reqack.\n";
-  std::cout << "Sending PACKSYN\n";
-  send_packsyn(sock_handle, &dest_addr);
-  while(receive_pack(sock_handle, &dest_addr, std::cout));
+  for(auto it = result_map.begin(); it != result_map.end(); ++it) {
+    std::cout << it->first << ": "
+              << (it->second.get() ? "passed" : "failed") << "\n";
+  }
 
   return 0;
 }
