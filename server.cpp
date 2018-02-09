@@ -3,32 +3,6 @@
 #include <sstream>
 #include <thread>
 
-/* TODO: Require a debug flag to print debug messages.
- *       Each send-receive pair must be enclosed inside a while(BADTIMEOUT)
- *       loop, with a send_close() upon failure.
- *       Something as follows:
- *       void protocol() {
- *           int counter = 0;
- *           bool result = false;
- *           do {
- *               fr.do_thing();
- *               result = fr.receive_thing();
- *               counter++;
- *           } while(!result && counter < BADTIMEOUT);
- *           if(counter >=BADTIMEOUT) {
- *               return;
- *           }
- *           counter = 0;
- *           
- *           We can then encapsulate this inside another function.
- *           bool tryNtimes(std::function<void> send_func, std::function<void> rec_func)
- *
- *           Same idea. Try it, and if it returns true, we're good. If not, welp, return false and return.
- *           The end of the calling function then sends the close.
- *           It's basically a goto, but we're pretending it's not because it's a function call. lololol
- */
-
-
 void await_syn(int sockfd, struct sockaddr_in *remote_addr) {
   char buf[BUFFSIZE];
   socklen_t addrlen = sizeof(*remote_addr);
@@ -59,22 +33,40 @@ void subordinate_thread(struct sockaddr_in current_addr) {
 // As a result, we use another function and use `return` as GOTO end.
 void seq_subordinate(FileRequest& fr) {
 
-  std::function<void(void)> f1;
-  std::function<bool(void)> f2;
+  std::function<void(void)> send_f;
+  std::function<rec_outcome(void)> rec_f;
+  rec_outcome result;
 
-  f1 = std::bind(&FileRequest::send_synack, &fr);
-  f2 = std::bind(&FileRequest::receive_req, &fr);
-  if(!try_n_times(f1, f2, BADTIMEOUT)) {
+  send_f = std::bind(&FileRequest::send_synack, &fr);
+  rec_f = std::bind(&FileRequest::receive_req, &fr);
+  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+
+  if(result == REC_TIMEOUT) {
+    std::cout << "Timed out at receive_req\n";
+    return;
+  }
+
+  if(result == REC_FAILURE) {
+    std::cout << "Received garbage at receive_req\n";
     return;
   }
 
   if(!fr.open_file()) {
+    std::cout << "Unable to open file.\n";
     return;
   }
 
-  f1 = std::bind(&FileRequest::send_reqack, &fr);
-  f2 = std::bind(&FileRequest::receive_packsyn, &fr);
-  if(!try_n_times(f1, f2, BADTIMEOUT)) {
+  send_f = std::bind(&FileRequest::send_reqack, &fr);
+  rec_f = std::bind(&FileRequest::receive_packsyn, &fr);
+  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+  
+  if(result == REC_TIMEOUT) {
+    std::cout << "Timed out at receive_packsyn\n";
+    return;
+  }
+
+  if(result == REC_FAILURE) {
+    std::cout << "Received garbage at receive_packsyn\n";
     return;
   }
 

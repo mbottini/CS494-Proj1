@@ -75,21 +75,19 @@ void FileRequest::send_synack() {
   return;
 }
 
-bool FileRequest::receive_req() {
+rec_outcome FileRequest::receive_req() {
   char buf[BUFFSIZE];
   socklen_t addrlen = sizeof(this->remote_addr);
   int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
                          (struct sockaddr*)&(this->remote_addr), &addrlen);
   if(recvlen > 1 && is_req(*buf)) {
     filename = std::string(buf + 1, recvlen - 1);
+    return REC_SUCCESS;
   }
-  /* We're going to make this function produce a bool,, and the calling function
-   * will instead send the close. 
-  else {
-    send_close();
+  else if(recvlen == -1) {
+    return REC_TIMEOUT;
   }
-  */
-  return recvlen > 0;
+  return REC_FAILURE;
 }
 
 bool FileRequest::open_file() {
@@ -116,7 +114,7 @@ void FileRequest::send_reqack() {
          (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
 }
 
-bool FileRequest::receive_packsyn() {
+rec_outcome FileRequest::receive_packsyn() {
   char buf[BUFFSIZE];
   socklen_t addrlen = sizeof(this->remote_addr);
   int packet_size = 0;
@@ -131,16 +129,13 @@ bool FileRequest::receive_packsyn() {
       packet_size = BUFFSIZE;
     }
     this->packet_size = packet_size;
-    valid_packet = true;
+    return REC_SUCCESS;
+  }
+  else if(recvlen == -1) {
+    return REC_TIMEOUT;
   }
 
-  /* See above. We're going to make this return a bool, so the calling function
-   * will have to send the close. 
-  else {
-    send_close();
-  }
-  */
-  return valid_packet;
+  return REC_FAILURE;
 }
 
 // Unfortunately, we can't do try_n_times with this because we're passing
