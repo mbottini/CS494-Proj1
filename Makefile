@@ -14,7 +14,7 @@ server: server.o common.o filerequest.o
 server.o: server.cpp 
 	$(COMPILE) -c server.cpp
 
-filerequest.o:
+filerequest.o: filerequest.cpp
 	$(COMPILE) -c filerequest.cpp
 
 client.o: client.cpp 
