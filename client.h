@@ -20,6 +20,8 @@ rec_outcome receive_synack(int sockfd, struct sockaddr_in *remote_addr);
 void send_req(int sockfd, struct sockaddr_in *remote_addr, 
               const char *filename);
 rec_outcome receive_reqack(int sockfd, struct sockaddr_in *remote_addr);
+void send_packsyn(int sockfd, struct sockaddr_in *dest_addr, 
+                  int size = BUFFSIZE);
 bool receive_pack(int sockfd, struct sockaddr_in *remote_addr, 
                   std::ostream& os);
 void send_packack(int sockfd, struct sockaddr_in *remote_addr, int packet_num);
@@ -30,7 +32,6 @@ bool is_reqack(char c);
 bool is_pack(char c);
 bool is_close(char c);
 
-bool hostname_to_ip(char* str, int &result);
-
 std::string ip_to_string(int ip);
+bool hostname_to_ip(char* str, char* port, struct sockaddr *dest_addr);
 #endif

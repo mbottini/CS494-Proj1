@@ -5,8 +5,8 @@ COMPILE=$(CC) $(CFLAGS)
 
 all: client server
 
-client: client.o common.o
-	$(COMPILE) client.o common.o -o client
+client: common.o clientmain.o client.o
+	$(COMPILE) client.o common.o clientmain.o -o client
 
 server: server.o common.o filerequest.o
 	$(COMPILE) $(MULTITHREAD) server.o common.o filerequest.o -o server
@@ -16,6 +16,9 @@ server.o: server.cpp
 
 filerequest.o: filerequest.cpp
 	$(COMPILE) -c filerequest.cpp
+
+clientmain.o: clientmain.cpp
+	$(COMPILE) -c clientmain.cpp
 
 client.o: client.cpp 
 	$(COMPILE) -c client.cpp
