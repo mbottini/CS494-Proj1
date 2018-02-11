@@ -66,37 +66,44 @@ void send_packsyn(int sockfd, struct sockaddr_in *dest_addr,
          (struct sockaddr *)dest_addr, sizeof(*dest_addr));
 }
 
-bool receive_pack(int sockfd, struct sockaddr_in *dest_addr,
-                         std::ostream& os) {
+rec_outcome receive_pack(int sockfd, struct sockaddr_in *remote_addr, 
+                         int *current_packet, std::ostream *os) {
   char buf[BUFFSIZE];
-  socklen_t addrlen = sizeof(*dest_addr);
+  socklen_t addrlen = sizeof(*remote_addr);
   int packet_num;
   int recvlen = recvfrom(sockfd, buf, BUFFSIZE, 0, 
-                         (struct sockaddr *)dest_addr, &addrlen);
+                         (struct sockaddr *)remote_addr, &addrlen);
   if(recvlen > 5 && is_pack(*buf)) {
-    os.write(buf + 5, recvlen - 5);
     std::memcpy(&packet_num, buf + 1, 4);
     packet_num = ntohl(packet_num);
-    std::cerr << "Received packet " << packet_num << ", size " 
-              << recvlen << "\n";
-    send_packack(sockfd, dest_addr, packet_num);
+    if(packet_num != *current_packet) {
+      std::cerr << "Wrong packet.\n";
+      return REC_WRONGPACKET;
+    }
+    os->write(buf + 5, recvlen - 5);
+    *current_packet = *current_packet + 1;
+    return REC_SUCCESS;
   }
 
-  else if(is_close(*buf)) {
+  else if(recvlen == -1) {
+    return REC_TIMEOUT;
+  }
+
+  else if(recvlen >= 1 && is_close(*buf)) {
     std::cerr << "Received CLOSE.\n";
-    return false;
+    return REC_FAILURE;
   }
 
-  return true;
+  return REC_FAILURE;
 }
 
 void send_packack(int sockfd, struct sockaddr_in *dest_addr, 
-                  int packet_num) {
-  std::cerr << "Sending PACKACK for packet " << packet_num << "\n";
+                  int *packet_num) {
+  unsigned int pack_num_network;
   char buf[5];
   *buf = PACK | ACK;
-  packet_num = htonl(packet_num);
-  std::memcpy(buf + 1, &packet_num, 4);
+  pack_num_network = htonl(*packet_num - 1);
+  std::memcpy(buf + 1, &pack_num_network, 4);
   sendto(sockfd, buf, 5, 0,
          (struct sockaddr *)dest_addr, sizeof(*dest_addr));
   return;

@@ -36,7 +36,7 @@ clean:
 	rm server client *.o
 
 test: client server
-	./server 5954 &
+	./server 5954 & > /dev/null 2> /dev/null
 	./client localhost 5954 /home/mike/stuff.hs
 	pkill server
 

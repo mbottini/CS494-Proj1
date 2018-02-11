@@ -185,6 +185,10 @@ rec_outcome FileRequest::receive_packack() {
     if(packet_number == this->current_packet) {
       return REC_SUCCESS;
     }
+    else {
+      std::cout << "Wrong packet. Packet received was " << packet_number <<
+              "\n";
+    }
   }
   if(recvlen == -1) {
     return REC_TIMEOUT;

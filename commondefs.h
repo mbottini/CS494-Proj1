@@ -17,7 +17,8 @@
 enum rec_outcome {
   REC_TIMEOUT,
   REC_SUCCESS,
-  REC_FAILURE
+  REC_FAILURE,
+  REC_WRONGPACKET
 };
 
 rec_outcome try_n_times_ternary(std::function<void(void)> send_f, 
