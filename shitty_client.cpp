@@ -293,7 +293,6 @@ int main(int argc, char **argv) {
     exit(2);
   }
 
-  /*
   p_task_map.emplace("bad handshake", 
                      std::bind(test_bad_handshake, create_socket(1), 
                      dest_addr));
@@ -317,10 +316,10 @@ int main(int argc, char **argv) {
                      dest_addr));
   p_task_map.emplace("no response after packsyn",
                      std::bind(test_no_response_packsyn, create_socket(10),
-                     dest_addr)); */
+                     dest_addr));
   p_task_map.emplace("retransmit_packs",
                      std::bind(test_retransmit_packs, create_socket(10),
-                     dest_addr, 2, &std::cout));
+                     dest_addr, 2, &std::cerr));
   
   for(auto it = p_task_map.begin(); it != p_task_map.end(); ++it) {
     result_map.emplace(it->first, it->second.get_future());
