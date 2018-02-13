@@ -1,6 +1,7 @@
 CC=clang++
 CFLAGS=-std=c++11 
 MULTITHREAD=-l pthread
+TESTFILE=./commondefs.h
 COMPILE=$(CC) $(CFLAGS)
 
 all: client server
@@ -37,10 +38,10 @@ clean:
 
 test: client server
 	./server 5954 & > /dev/null 2> /dev/null
-	./client localhost 5954 /home/mike/stuff.hs
+	./client localhost 5954 $(TESTFILE)
 	pkill server
 
 stest: server shitty
 	./server 5954 > /dev/null &
-	./shitty localhost 5954 /home/mike/stuff.hs 2> /dev/null
+	./shitty localhost 5954 $(TESTFILE) 2> /dev/null
 	pkill server
