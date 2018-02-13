@@ -86,7 +86,6 @@ bool test_no_response_handshake(int sockfd, struct sockaddr_in dest_addr) {
       std::cerr << "no_response_handshake: Retransmit #" << i << "\n";
     }
     else {
-      std:
       return false;
     }
   }
@@ -278,7 +277,6 @@ bool test_retransmit_packs(int sockfd, struct sockaddr_in dest_addr,
 
 int main(int argc, char **argv) {
   struct sockaddr_in dest_addr;
-  std::ostream *os = &std::cout;
   std::unordered_map<std::string, std::packaged_task<bool(void)>> p_task_map;
   std::vector<std::thread> thread_vec;
   std::unordered_map<std::string, std::future<bool>> result_map;

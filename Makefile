@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-std=c++11 
+CFLAGS=-std=c++11 -Wall
 MULTITHREAD=-pthread
 TESTFILE=./commondefs.h
 COMPILE=$(CC) $(CFLAGS)

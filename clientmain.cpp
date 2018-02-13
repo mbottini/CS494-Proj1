@@ -11,7 +11,6 @@
 int main(int argc, char **argv) {
   // Server socket.
   struct sockaddr_in dest_addr;
-  int dest_ip_addr;
   int dest_port;
   std::ostream *os;
   std::ofstream outfile;

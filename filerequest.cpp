@@ -118,7 +118,6 @@ rec_outcome FileRequest::receive_packsyn() {
   char buf[BUFFSIZE];
   socklen_t addrlen = sizeof(this->remote_addr);
   int packet_size = 0;
-  bool valid_packet = false;
   int recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
                          (struct sockaddr*)&(this->remote_addr), &addrlen);
   if(recvlen == 5 && is_packsyn(*buf)) {
@@ -142,8 +141,6 @@ rec_outcome FileRequest::send_packs() {
   std::unique_ptr<char[]> buf(new char[packet_size]);
   *buf.get() = PACK;
   int actual_size = 0;
-  int packack_value;
-  int timeout_count;
   while((actual_size = copy_chunk(buf.get() + 5, infile, packet_size - 5)) > 0) {
     actual_size += 5;
     int current_packet_network = htonl(this->current_packet);

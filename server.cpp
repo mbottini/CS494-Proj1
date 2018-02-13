@@ -82,11 +82,6 @@ bool is_syn(char c) {
 int main(int argv, char **argc) {
   int port;
   struct sockaddr_in my_addr;
-
-  // Remote socket.
-  struct sockaddr_in remote_addr;
-  int recvlen;
-
   int sockfd;
 
   if (argv != 2 || !(std::stringstream(argc[1]) >> port) || port < 0 ||
