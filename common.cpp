@@ -1,4 +1,5 @@
 #include "commondefs.h"
+#include <iostream>
 
 // Terminates upon receiving a positive value.
 // Negative values denote timeout. Positive is a close() packet.
@@ -14,7 +15,7 @@ rec_outcome try_n_times_ternary(std::function<void(void)> send_f,
       return REC_FAILURE;
     }
   }
-  return REC_TIMEOUT;;
+  return REC_TIMEOUT;
 }
 
 std::string ip_to_string(int ip) {

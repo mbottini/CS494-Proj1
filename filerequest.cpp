@@ -138,9 +138,6 @@ rec_outcome FileRequest::receive_packsyn() {
   return REC_FAILURE;
 }
 
-// Unfortunately, we can't do try_n_times with this because we're passing
-// an arg. We could write it that way, but it would involve declaring
-// an array for every packet. That would be silly.
 rec_outcome FileRequest::send_packs() {
   std::unique_ptr<char[]> buf(new char[packet_size]);
   *buf.get() = PACK;
@@ -149,8 +146,6 @@ rec_outcome FileRequest::send_packs() {
   int timeout_count;
   while((actual_size = copy_chunk(buf.get() + 5, infile, packet_size - 5)) > 0) {
     actual_size += 5;
-    timeout_count = 0;
-
     int current_packet_network = htonl(this->current_packet);
     std::memcpy(buf.get() + 1, &current_packet_network, 4);
 

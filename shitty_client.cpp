@@ -174,8 +174,8 @@ bool test_bad_packsyn2(int sockfd, struct sockaddr_in dest_addr) {
   return receive_close(sockfd, &dest_addr) == REC_SUCCESS;
 }
 
-/*
 bool test_no_response_packsyn(int sockfd, struct sockaddr_in dest_addr) {
+  int current_packet = 0;
   send_syn(sockfd, &dest_addr);
   rec_outcome result = receive_synack(sockfd, &dest_addr);
   if(result != REC_SUCCESS) {
@@ -189,13 +189,89 @@ bool test_no_response_packsyn(int sockfd, struct sockaddr_in dest_addr) {
     return false;
   }
 
-  send_packsyn(sockfd, &dest_addr, BUFFSIZE);
+  send_packsyn(sockfd, &dest_addr, 50);
 
   for(int i = 0; i < BADTIMEOUT; i++) {
-    result = receive_pack;
-*/
-  
+    result = receive_pack(sockfd, &dest_addr, &current_packet, &std::cerr);
+    current_packet = 0;
+    if(result == REC_SUCCESS) {
+      std::cerr << "no_response_packsyn: Retransmit #" << i << "\n";
+    }
+    else {
+      return false;
+    }
+  }
 
+  return receive_close(sockfd, &dest_addr) == REC_SUCCESS;
+}
+
+bool test_retransmit_packs(int sockfd, struct sockaddr_in dest_addr, 
+                int times_ignore, std::ostream *os) {
+  int current_packet = 0;
+  int previous_packet = 0;
+  send_syn(sockfd, &dest_addr);
+  rec_outcome result = receive_synack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+
+  result = receive_reqack(sockfd, &dest_addr);
+  if(result != REC_SUCCESS) {
+    return false;
+  }
+
+  send_packsyn(sockfd, &dest_addr, 50);
+
+  for(int i = 0; i < times_ignore; i++) {
+    result = receive_pack(sockfd, &dest_addr, &current_packet, &std::cerr);
+    current_packet = 0;
+    if(result == REC_SUCCESS) {
+      *os       << "test_retransmit_packs, packet " << current_packet 
+                << ". Ignore #" << i << "\n";
+    }
+    else {
+      *os       << "Received something else " << result << "\n";
+      return false;
+    }
+  }
+
+  result = receive_pack(sockfd, &dest_addr, &current_packet, &std::cerr);
+  if(result == REC_SUCCESS) {
+    *os       << "test_retransmit_packs, packet " << current_packet 
+              << ". Responding.\n";
+  }
+  else {
+    return false;
+  }
+
+  while(result == REC_SUCCESS) {
+    previous_packet = current_packet;
+    send_packack(sockfd, &dest_addr, &current_packet);
+    for(int i = 0; i < times_ignore; i++) {
+      current_packet = previous_packet;
+      result = receive_pack(sockfd, &dest_addr, &current_packet, os);
+      if(result == REC_SUCCESS) {
+        *os       << "test_retransmit_packs, packet " << current_packet
+                  << ". Ignore #" << i << "\n";
+      }
+      else {
+        return true;
+      }
+    }
+    current_packet = previous_packet;
+    result = receive_pack(sockfd, &dest_addr, &current_packet, &*os);
+    if(result == REC_SUCCESS) {
+      *os       << "test_retransmit_packs, packet " << current_packet
+                << ". Responding.\n";
+    }
+    else {
+      return false;
+    }
+  }
+  return false;
+}
   
 
 
@@ -217,6 +293,7 @@ int main(int argc, char **argv) {
     exit(2);
   }
 
+  /*
   p_task_map.emplace("bad handshake", 
                      std::bind(test_bad_handshake, create_socket(1), 
                      dest_addr));
@@ -238,6 +315,12 @@ int main(int argc, char **argv) {
   p_task_map.emplace("bad packsyn size",
                      std::bind(test_bad_packsyn2, create_socket(1),
                      dest_addr));
+  p_task_map.emplace("no response after packsyn",
+                     std::bind(test_no_response_packsyn, create_socket(10),
+                     dest_addr)); */
+  p_task_map.emplace("retransmit_packs",
+                     std::bind(test_retransmit_packs, create_socket(10),
+                     dest_addr, 2, &std::cout));
   
   for(auto it = p_task_map.begin(); it != p_task_map.end(); ++it) {
     result_map.emplace(it->first, it->second.get_future());
