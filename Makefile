@@ -1,6 +1,6 @@
-CC=clang++
+CC=g++
 CFLAGS=-std=c++11 
-MULTITHREAD=-l pthread
+MULTITHREAD=-pthread
 TESTFILE=./commondefs.h
 COMPILE=$(CC) $(CFLAGS)
 
@@ -24,24 +24,24 @@ clientmain.o: clientmain.cpp
 client.o: client.cpp 
 	$(COMPILE) -c client.cpp
 
-shitty_client.o: shitty_client.cpp
-	$(COMPILE) -c shitty_client.cpp
+garbage_client.o: garbage_client.cpp
+	$(COMPILE) -c garbage_client.cpp
 
-shitty: shitty_client.o client.o common.o
-	$(COMPILE) $(MULTITHREAD) shitty_client.o client.o common.o -o shitty
+garbage: garbage_client.o client.o common.o
+	$(COMPILE) $(MULTITHREAD) garbage_client.o client.o common.o -o garbage
 
 common.o: common.cpp
 	$(COMPILE) -c common.cpp
 
 clean:
-	rm server client *.o
+	rm server client garbage *.o
 
 test: client server
 	./server 5954 & > /dev/null 2> /dev/null
 	./client localhost 5954 $(TESTFILE)
 	pkill server
 
-stest: server shitty
+stest: server garbage
 	./server 5954 > /dev/null &
-	./shitty localhost 5954 $(TESTFILE) 2> /dev/null
+	./garbage localhost 5954 $(TESTFILE) 2> /dev/null
 	pkill server
