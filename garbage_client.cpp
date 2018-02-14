@@ -1,7 +1,6 @@
 #include "client.h"
 #include <thread>
 #include <future>
-#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -122,7 +121,7 @@ bool test_no_response_filename(int sockfd, struct sockaddr_in dest_addr) {
     return false;
   }
 
-  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+  send_req(sockfd, &dest_addr, "commondefs.h");
 
   for(int i = 0; i < BADTIMEOUT; i++) {
     result = receive_reqack(sockfd, &dest_addr);
@@ -144,7 +143,7 @@ bool test_bad_packsyn1(int sockfd, struct sockaddr_in dest_addr) {
     return false;
   }
 
-  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+  send_req(sockfd, &dest_addr, "commondefs.h");
 
   result = receive_reqack(sockfd, &dest_addr);
   if(result != REC_SUCCESS) {
@@ -162,7 +161,7 @@ bool test_bad_packsyn2(int sockfd, struct sockaddr_in dest_addr) {
     return false;
   }
 
-  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+  send_req(sockfd, &dest_addr, "commondefs.h");
 
   result = receive_reqack(sockfd, &dest_addr);
   if(result != REC_SUCCESS) {
@@ -178,17 +177,19 @@ bool test_no_response_packsyn(int sockfd, struct sockaddr_in dest_addr) {
   send_syn(sockfd, &dest_addr);
   rec_outcome result = receive_synack(sockfd, &dest_addr);
   if(result != REC_SUCCESS) {
+    std::cout << "receive_synack: " << result << "\n";
     return false;
   }
 
-  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+  send_req(sockfd, &dest_addr, "commondefs.h");
 
   result = receive_reqack(sockfd, &dest_addr);
   if(result != REC_SUCCESS) {
+    std::cout << "receive_reqack: " << result << "\n";
     return false;
   }
 
-  send_packsyn(sockfd, &dest_addr, 50);
+  send_packsyn(sockfd, &dest_addr, 500);
 
   for(int i = 0; i < BADTIMEOUT; i++) {
     result = receive_pack(sockfd, &dest_addr, &current_packet, &std::cerr);
@@ -197,6 +198,7 @@ bool test_no_response_packsyn(int sockfd, struct sockaddr_in dest_addr) {
       std::cerr << "no_response_packsyn: Retransmit #" << i << "\n";
     }
     else {
+      std::cout << "receive_pack: " << result << "\n";
       return false;
     }
   }
@@ -214,14 +216,14 @@ bool test_retransmit_packs(int sockfd, struct sockaddr_in dest_addr,
     return false;
   }
 
-  send_req(sockfd, &dest_addr, "/home/mike/stuff.hs");
+  send_req(sockfd, &dest_addr, "commondefs.h");
 
   result = receive_reqack(sockfd, &dest_addr);
   if(result != REC_SUCCESS) {
     return false;
   }
 
-  send_packsyn(sockfd, &dest_addr, 50);
+  send_packsyn(sockfd, &dest_addr, 500);
 
   for(int i = 0; i < times_ignore; i++) {
     result = receive_pack(sockfd, &dest_addr, &current_packet, &std::cerr);
@@ -271,15 +273,10 @@ bool test_retransmit_packs(int sockfd, struct sockaddr_in dest_addr,
   }
   return false;
 }
-  
-
-
 
 int main(int argc, char **argv) {
   struct sockaddr_in dest_addr;
-  std::unordered_map<std::string, std::packaged_task<bool(void)>> p_task_map;
-  std::vector<std::thread> thread_vec;
-  std::unordered_map<std::string, std::future<bool>> result_map;
+  std::unordered_map<std::string, std::future<bool>> async_map;
 
   if (argc < 4 || argc > 5) {
     std::cerr << "Invalid number of arguments. Exiting.\n";
@@ -291,44 +288,35 @@ int main(int argc, char **argv) {
     exit(2);
   }
 
-  p_task_map.emplace("bad handshake", 
-                     std::bind(test_bad_handshake, create_socket(1), 
+  async_map.emplace("bad handshake", 
+                     std::async(test_bad_handshake, create_socket(1), 
                      dest_addr));
-  p_task_map.emplace("no response after handshake",
-                     std::bind(test_no_response_handshake, create_socket(10),
+  async_map.emplace("no response after handshake",
+                     std::async(std::launch::async, test_no_response_handshake, create_socket(10),
                      dest_addr)); 
-  p_task_map.emplace("bad req",
-                     std::bind(test_bad_req, create_socket(1), 
+  async_map.emplace("bad req",
+                     std::async(std::launch::async, test_bad_req, create_socket(1), 
                      dest_addr)); 
-  p_task_map.emplace("bad filename",
-                     std::bind(test_bad_filename, create_socket(1), 
+  async_map.emplace("bad filename",
+                     std::async(std::launch::async, test_bad_filename, create_socket(1), 
                      dest_addr)); 
-  p_task_map.emplace("no response after filename",
-                     std::bind(test_no_response_filename, create_socket(10),
+  async_map.emplace("no response after filename",
+                     std::async(std::launch::async, test_no_response_filename, create_socket(10),
                      dest_addr));
-  p_task_map.emplace("bad packsyn packet",
-                     std::bind(test_bad_packsyn1, create_socket(1),
+  async_map.emplace("bad packsyn packet",
+                     std::async(std::launch::async, test_bad_packsyn1, create_socket(1),
                      dest_addr));
-  p_task_map.emplace("bad packsyn size",
-                     std::bind(test_bad_packsyn2, create_socket(1),
+  async_map.emplace("bad packsyn size",
+                     std::async(std::launch::async, test_bad_packsyn2, create_socket(1),
                      dest_addr));
-  p_task_map.emplace("no response after packsyn",
-                     std::bind(test_no_response_packsyn, create_socket(10),
+  async_map.emplace("no response after packsyn",
+                     std::async(std::launch::async, test_no_response_packsyn, create_socket(10),
                      dest_addr));
-  p_task_map.emplace("retransmit_packs",
-                     std::bind(test_retransmit_packs, create_socket(10),
+  async_map.emplace("retransmit_packs",
+                     std::async(std::launch::async, test_retransmit_packs, create_socket(10),
                      dest_addr, 2, &std::cerr));
   
-  for(auto it = p_task_map.begin(); it != p_task_map.end(); ++it) {
-    result_map.emplace(it->first, it->second.get_future());
-    thread_vec.push_back(std::thread(std::move(it->second)));
-  }
-
-  for(auto it = thread_vec.begin(); it != thread_vec.end(); ++it) {
-    it->join();
-  }
-
-  for(auto it = result_map.begin(); it != result_map.end(); ++it) {
+  for(auto it = async_map.begin(); it != async_map.end(); ++it) {
     std::cout << it->first << ": "
               << (it->second.get() ? "passed" : "failed") << "\n";
   }
