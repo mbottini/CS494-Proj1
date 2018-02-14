@@ -37,9 +37,6 @@ clean:
 	rm server client garbage *.o
 
 test: client server
-	./server 5954 & > /dev/null 2> /dev/null
-	./client localhost 5954 $(TESTFILE)
-	pkill server
-
+	sh basic_test.sh
 stest: server garbage
-	./unit_test.sh 2> /dev/null
+	sh unit_test.sh 2> /dev/null
