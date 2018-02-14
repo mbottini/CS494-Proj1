@@ -42,6 +42,4 @@ test: client server
 	pkill server
 
 stest: server garbage
-	./server 5954 > /dev/null &
-	./garbage localhost 5954 $(TESTFILE) 2> /dev/null
-	pkill server
+	./unit_test.sh 2> /dev/null
