@@ -140,8 +140,8 @@ bool hostname_to_ip(char* str, char* port, struct sockaddr *dest_addr) {
     *dest_addr = *(ai->ai_addr);
     int ip_addr = ntohl(((struct sockaddr_in*)dest_addr)->sin_addr.s_addr);
     std::cerr << "Found IP address: " << ip_to_string(ip_addr) << "\n";
+    freeaddrinfo(ai);
   }
 
-  freeaddrinfo(ai);
   return valid_addr;
 }

@@ -20,25 +20,34 @@ int main(int argc, char **argv) {
 
   if (argc < 4 || argc > 5) {
     std::cerr << "Invalid number of arguments. Exiting.\n";
-    exit(1);
+    return 1;
   }
 
-  if (!hostname_to_ip(argv[1], argv[2], (struct sockaddr*)&dest_addr)) {
+  char *hostname = argv[1];
+  char *port = argv[2];
+  int port_num = std::atoi(port);
+
+  if(port_num <= 0 || port_num >= 65536) {
+    std::cerr << "Invalid port number. Exiting.\n";
+    return 2;
+  }
+
+  if (!hostname_to_ip(hostname, port, (struct sockaddr*)&dest_addr)) {
     std::cerr << "Invalid IP address. Exiting.\n";
-    exit(2);
+    return 3;
   }
 
   if (!(std::stringstream(argv[2]) >> dest_port) || dest_port < 0 ||
       dest_port >= 65536) {
     std::cerr << "Invalid port number. Exiting.\n";
-    exit(3);
+    return 4;
   }
 
   // Open the socket.
   sock_handle = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock_handle < 0) {
     std::cerr << "Unable to open socket. Aborting.\n";
-    exit(4);
+    return 5;
   }
 
   // Set the timeout.
@@ -48,13 +57,14 @@ int main(int argc, char **argv) {
   if(setsockopt(sock_handle, SOL_SOCKET, (SO_RCVTIMEO), &tv,
                 sizeof(tv)) < 0) {
     std::cerr << "Unable to set options. Aborting\n";
+    return 6;
   }
 
   if(argc == 5) {
     outfile.open(argv[4]);
     if(!outfile) {
       std::cerr << "Unable to open file. Aborting.\n";
-      exit(5);
+      return 7;
     }
     os = &outfile;
   }
