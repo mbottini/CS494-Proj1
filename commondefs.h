@@ -21,7 +21,7 @@ enum rec_outcome {
   REC_WRONGPACKET
 };
 
-rec_outcome try_n_times_ternary(std::function<void(void)> send_f, 
+rec_outcome try_n_times(std::function<void(void)> send_f, 
                          std::function<rec_outcome(void)> rec_f, int n);
 std::string ip_to_string(int ip);
 

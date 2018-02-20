@@ -150,7 +150,7 @@ rec_outcome FileRequest::send_packs() {
         std::bind(&FileRequest::send_pack, this, buf.get(), actual_size);
     std::function<rec_outcome(void)> rec_f =
         std::bind(&FileRequest::receive_packack, this);
-    rec_outcome result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+    rec_outcome result = try_n_times(send_f, rec_f, BADTIMEOUT);
     if(result != REC_SUCCESS) {
       return result;
     }

@@ -39,7 +39,7 @@ void seq_subordinate(FileRequest& fr) {
 
   send_f = std::bind(&FileRequest::send_synack, &fr);
   rec_f = std::bind(&FileRequest::receive_req, &fr);
-  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+  result = try_n_times(send_f, rec_f, BADTIMEOUT);
 
   if(result == REC_TIMEOUT) {
     std::cout << "Timed out at receive_req\n";
@@ -58,7 +58,7 @@ void seq_subordinate(FileRequest& fr) {
 
   send_f = std::bind(&FileRequest::send_reqack, &fr);
   rec_f = std::bind(&FileRequest::receive_packsyn, &fr);
-  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+  result = try_n_times(send_f, rec_f, BADTIMEOUT);
   
   if(result == REC_TIMEOUT) {
     std::cout << "Timed out at receive_packsyn\n";

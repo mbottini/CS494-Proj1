@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
   send_f = std::bind(send_syn, sock_handle, &dest_addr);
   rec_f = std::bind(receive_synack, sock_handle, &dest_addr);
 
-  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+  result = try_n_times(send_f, rec_f, BADTIMEOUT);
   if(result == REC_FAILURE) {
     std::cerr << "Request received failure message.\n";
     return 0;
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
   send_f = std::bind(send_req, sock_handle, &dest_addr, argv[3]);
   rec_f = std::bind(receive_reqack, sock_handle, &dest_addr);
 
-  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+  result = try_n_times(send_f, rec_f, BADTIMEOUT);
   if(result == REC_FAILURE) {
     std::cerr << "Request received failure message.\n";
     return 0;
@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
   send_f = std::bind(send_packsyn, sock_handle, &dest_addr, 50);
   rec_f = std::bind(receive_pack, sock_handle, &dest_addr, &current_packet, os);
 
-  result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+  result = try_n_times(send_f, rec_f, BADTIMEOUT);
   if(result == REC_FAILURE) {
     std::cerr << "Request received failure message.\n";
     return 0;
@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
 
   // Remainder of packets.
   do {
-    result = try_n_times_ternary(send_f, rec_f, BADTIMEOUT);
+    result = try_n_times(send_f, rec_f, BADTIMEOUT);
   } while (result == REC_SUCCESS);
     
   return 0;
