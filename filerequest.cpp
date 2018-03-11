@@ -138,25 +138,90 @@ rec_outcome FileRequest::receive_packsyn() {
 }
 
 rec_outcome FileRequest::send_packs() {
-  std::unique_ptr<char[]> buf(new char[packet_size]);
-  *buf.get() = PACK;
-  int actual_size = 0;
-  while((actual_size = copy_chunk(buf.get() + 5, infile, packet_size - 5)) > 0) {
-    actual_size += 5;
-    int current_packet_network = htonl(this->current_packet);
-    std::memcpy(buf.get() + 1, &current_packet_network, 4);
+  unsigned int window_size = WINDOW_START;
+  std::unordered_map<int, TimerObject> timer_map;
+  int current_packet = 0;
+  int current_packet_htonl = 0;
+  char current_buf[BUFFSIZE];
+  int actual_size;
+  bool eof = false;
+  time_t now;
+  bool decrease_window = false;
 
-    std::function<void(void)> send_f =
-        std::bind(&FileRequest::send_pack, this, buf.get(), actual_size);
-    std::function<rec_outcome(void)> rec_f =
-        std::bind(&FileRequest::receive_packack, this);
-    rec_outcome result = try_n_times(send_f, rec_f, BADTIMEOUT);
-    if(result != REC_SUCCESS) {
-      return result;
+  // Socket reception variables.
+  int recvlen = -1;
+  char buf[BUFFSIZE];
+  socklen_t addrlen = sizeof(this->remote_addr);
+  int packet_number;
+
+  struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 100000; // 0.1 seconds
+  // Note that we don't care about resetting the options, as this is the last
+  // step in the file exchange.
+  if(setsockopt(sockfd, SOL_SOCKET, (SO_RCVTIMEO), &tv,
+                sizeof(tv)) < 0) {
+    std::cout << "Unable to set timeout options.\n";
+    return REC_FAILURE;
+  }
+
+  while(1) {
+    if(eof && timer_map.empty()) {
+      break;
+    }
+    // Grab another chunk and create another timer object in the map.
+    if(!eof && timer_map.size() < window_size) {
+      current_buf[0] = PACK;
+      current_packet_htonl = htonl(current_packet);
+      std::memcpy(buf + 1, &current_packet_htonl, 4);
+      actual_size = copy_chunk(current_buf + 5, this->infile, BUFFSIZE - 5);
+      if(actual_size <= 0) {
+        eof = true;
+      }
+      else {
+        actual_size += 5;
+        timer_map.emplace(current_packet, 
+                          TimerObject(current_buf, actual_size, this->sockfd,
+                                      this->remote_addr));
+      }
+    }
+  
+    // Spinning, spinning, spinning... There are async ways to do this, but the
+    // documentation is actively hostile to me applying it to this task, and
+    // I'm doubtful that it'll aid in efficiency anyway.
+    decrease_window = false;
+    time(&now);
+    for(auto it = timer_map.begin(); it != timer_map.end(); ++it) {
+      if(difftime(now, it->second.get_time()) >= TIMEOUT) {
+        it->second.send_pack();
+        it->second.set_time(now);
+        it->second.inc_timeout();
+        if(!decrease_window) {
+          decrease_window = true;
+          window_size /= 2;
+          if(window_size == 0) {
+            window_size++;
+          }
+        }
+        if(it->second.get_timeout() > BADTIMEOUT) {
+          return REC_FAILURE;
+        }
+      }
     }
 
-    this->current_packet++;
+    // Receive a packet. If it times out, return to beginning. Otherwise,
+    // we process the packet and remove the corresponding entry from the map. 
+    recvlen = recvfrom(this->sockfd, buf, BUFFSIZE, 0,
+                         (struct sockaddr*)&(this->remote_addr), &addrlen);
+    if(recvlen == 5 && is_packack(*buf)) {
+      std::memcpy(&packet_number, buf + 1, 4);
+      packet_number = htonl(packet_number);
+      if(timer_map.find(packet_number) != timer_map.end()) {
+        timer_map.erase(packet_number);
+      }
+    }
   }
+  
   return REC_SUCCESS;
 }
 
@@ -235,3 +300,5 @@ int copy_chunk(char *buf, std::ifstream& infile, int size) {
   infile.read(buf, size);
   return infile.gcount();
 }
+
+

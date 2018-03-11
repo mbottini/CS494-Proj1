@@ -5,6 +5,7 @@
 #include <ostream>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
 #include <limits>
 #include <memory>      // std::unique_ptr
 #include <arpa/inet.h>
@@ -12,8 +13,10 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "commondefs.h"
+#include "timerobject.h"
 
 class FileRequest {
   private:

@@ -9,13 +9,13 @@ all: client server
 client: common.o clientmain.o client.o
 	$(COMPILE) client.o common.o clientmain.o -o client
 
-server: server.o common.o filerequest.o
-	$(COMPILE) $(MULTITHREAD) server.o common.o filerequest.o -o server
+server: server.o common.o filerequest.o timerobject.o
+	$(COMPILE) $(MULTITHREAD) server.o common.o filerequest.o timerobject.o -o server
 
 server.o: server.cpp 
 	$(COMPILE) -c server.cpp
 
-filerequest.o: filerequest.cpp
+filerequest.o: filerequest.cpp 
 	$(COMPILE) -c filerequest.cpp
 
 clientmain.o: clientmain.cpp
@@ -32,6 +32,9 @@ garbage: garbage_client.o client.o common.o
 
 common.o: common.cpp
 	$(COMPILE) -c common.cpp
+
+timerobject.o: timerobject.cpp
+	$(COMPILE) -c timerobject.cpp
 
 clean:
 	rm server client garbage *.o
