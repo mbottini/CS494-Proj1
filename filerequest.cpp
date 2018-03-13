@@ -173,7 +173,7 @@ rec_outcome FileRequest::send_packs() {
     if(!eof && timer_map.size() < window_size) {
       current_buf[0] = PACK;
       current_packet_htonl = htonl(current_packet);
-      std::memcpy(buf + 1, &current_packet_htonl, 4);
+      std::memcpy(current_buf + 1, &current_packet_htonl, 4);
       actual_size = copy_chunk(current_buf + 5, this->infile, BUFFSIZE - 5);
       if(actual_size <= 0) {
         eof = true;
@@ -183,6 +183,9 @@ rec_outcome FileRequest::send_packs() {
         timer_map.emplace(current_packet, 
                           TimerObject(current_buf, actual_size, this->sockfd,
                                       this->remote_addr));
+        sendto(this->sockfd, current_buf, actual_size, 0, 
+               (struct sockaddr*)&this->remote_addr, sizeof(this->remote_addr));
+        current_packet++;
       }
     }
   
@@ -215,7 +218,8 @@ rec_outcome FileRequest::send_packs() {
                          (struct sockaddr*)&(this->remote_addr), &addrlen);
     if(recvlen == 5 && is_packack(*buf)) {
       std::memcpy(&packet_number, buf + 1, 4);
-      packet_number = htonl(packet_number);
+      packet_number = ntohl(packet_number);
+      std::cout << "Received PACKACK for packet " << packet_number << "\n";
       if(timer_map.find(packet_number) != timer_map.end()) {
         timer_map.erase(packet_number);
       }

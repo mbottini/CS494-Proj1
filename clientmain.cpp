@@ -17,9 +17,11 @@ int main(int argc, char **argv) {
   int sock_handle;
 
   // For Proj2
-  char filebuf[(BUFFSIZE - 5) * WINDOWSIZE];
+  packet filebuf[WINDOWSIZE];
+  for(int i = 0; i < WINDOWSIZE; i++) {
+    filebuf[i].dirty = false;
+  }
   char buf[BUFFSIZE];
-  bool dirty[WINDOWSIZE];
   int recvlen;
   unsigned int addrlen = sizeof(dest_addr);
   int packet_num;
@@ -117,8 +119,6 @@ int main(int argc, char **argv) {
 
   // And now we should be receiving packets.
 
-  std::memset(dirty, 0, sizeof dirty);
-  
   while(1) {
     recvlen = recvfrom(sock_handle, buf, BUFFSIZE, 0,
                        (struct sockaddr *)&dest_addr, &addrlen);
@@ -138,15 +138,18 @@ int main(int argc, char **argv) {
     else if(is_pack(*buf)) {
       std::memcpy(&packet_num, buf + 1, 4);
       packet_num = ntohl(packet_num);
+      std::cerr << "Received packet " << packet_num << "\n";
 
       if(packet_num < current_base) {
         send_packack(sock_handle, &dest_addr, packet_num);
       }
       else if(packet_num - current_base <= WINDOWSIZE) {
-        if(!dirty[packet_num - current_base]) {
-          std::memcpy(filebuf + (packet_num - current_base) * BUFFSIZE,
-                      buf + 5, BUFFSIZE - 5);
-          dirty[packet_num - current_base] = true;
+        if(!filebuf[packet_num - current_base].dirty) {
+          std::cerr << "We haven't gotten this packet. Writing to buffer.\n";
+          std::memcpy(filebuf[packet_num - current_base].buf,
+                      buf + 5, recvlen - 5);
+          filebuf[packet_num - current_base].dirty = true;
+          filebuf[packet_num - current_base].size = recvlen - 5;
         }
         send_packack(sock_handle, &dest_addr, packet_num);
       }
@@ -154,10 +157,12 @@ int main(int argc, char **argv) {
     }
     // It's a close!
     else if(is_close(*buf)) {
-      for(int i = 0; i < WINDOWSIZE && dirty[i]; i++) {
-        os->write(filebuf + (i * (BUFFSIZE - 5)), BUFFSIZE - 5);
+      std::cerr << "Received close.\n";
+      for(int i = 0; i < WINDOWSIZE && filebuf[i].dirty; i++) {
+        std::cerr << "Blarg!\n";
+        os->write(filebuf[i].buf, filebuf[i].size);
       }
-      break;
+      return 0;
     }
     else {
       continue;
@@ -169,14 +174,17 @@ int main(int argc, char **argv) {
     
     full_window = true;
     for(int i = 0; i < WINDOWSIZE; i++) {
-      if(!dirty[i]) {
+      if(!filebuf[i].dirty) {
         full_window = false;
         break;
       }
     }
     if(full_window) {
-      os->write(filebuf, sizeof(filebuf));
-      std::memset(dirty, 0, sizeof dirty);
+      std::cerr << "Full window. Writing buffer.\n";
+      for(int i = 0; i < WINDOWSIZE; i++) {
+        os->write(filebuf[i].buf, filebuf[i].size);
+        filebuf[i].dirty = false;
+      }
       current_base += WINDOWSIZE;
     }
   }

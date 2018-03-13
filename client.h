@@ -15,6 +15,12 @@
 
 #include "commondefs.h"
 
+struct packet {
+  char buf[BUFFSIZE];
+  int size;
+  bool dirty;
+};
+
 void send_syn(int sockfd, struct sockaddr_in *remote_addr);
 rec_outcome receive_synack(int sockfd, struct sockaddr_in *remote_addr);
 void send_req(int sockfd, struct sockaddr_in *remote_addr, 
