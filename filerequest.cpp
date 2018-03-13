@@ -139,6 +139,7 @@ rec_outcome FileRequest::receive_packsyn() {
 
 rec_outcome FileRequest::send_packs() {
   unsigned int window_size = WINDOW_START;
+  unsigned int success_count = 0;
   std::unordered_map<int, TimerObject> timer_map;
   int current_packet = 0;
   int current_packet_htonl = 0;
@@ -219,9 +220,14 @@ rec_outcome FileRequest::send_packs() {
     if(recvlen == 5 && is_packack(*buf)) {
       std::memcpy(&packet_number, buf + 1, 4);
       packet_number = ntohl(packet_number);
-      std::cout << "Received PACKACK for packet " << packet_number << "\n";
       if(timer_map.find(packet_number) != timer_map.end()) {
         timer_map.erase(packet_number);
+        success_count++;
+        if(success_count >= window_size) {
+          window_size += WINDOW_INCREASE;
+          success_count = 0;
+          std::cout << "Increasing window size to " << window_size << "\n";
+        }
       }
     }
   }

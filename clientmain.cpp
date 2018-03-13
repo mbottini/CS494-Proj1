@@ -138,14 +138,12 @@ int main(int argc, char **argv) {
     else if(is_pack(*buf)) {
       std::memcpy(&packet_num, buf + 1, 4);
       packet_num = ntohl(packet_num);
-      std::cerr << "Received packet " << packet_num << "\n";
 
       if(packet_num < current_base) {
         send_packack(sock_handle, &dest_addr, packet_num);
       }
       else if(packet_num - current_base <= WINDOWSIZE) {
         if(!filebuf[packet_num - current_base].dirty) {
-          std::cerr << "We haven't gotten this packet. Writing to buffer.\n";
           std::memcpy(filebuf[packet_num - current_base].buf,
                       buf + 5, recvlen - 5);
           filebuf[packet_num - current_base].dirty = true;
@@ -159,7 +157,6 @@ int main(int argc, char **argv) {
     else if(is_close(*buf)) {
       std::cerr << "Received close.\n";
       for(int i = 0; i < WINDOWSIZE && filebuf[i].dirty; i++) {
-        std::cerr << "Blarg!\n";
         os->write(filebuf[i].buf, filebuf[i].size);
       }
       return 0;
@@ -180,7 +177,6 @@ int main(int argc, char **argv) {
       }
     }
     if(full_window) {
-      std::cerr << "Full window. Writing buffer.\n";
       for(int i = 0; i < WINDOWSIZE; i++) {
         os->write(filebuf[i].buf, filebuf[i].size);
         filebuf[i].dirty = false;
