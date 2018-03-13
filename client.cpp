@@ -98,11 +98,11 @@ rec_outcome receive_pack(int sockfd, struct sockaddr_in *remote_addr,
 }
 
 void send_packack(int sockfd, struct sockaddr_in *dest_addr, 
-                  int *packet_num) {
+                  int packet_num) {
   unsigned int pack_num_network;
   char buf[5];
   *buf = PACK | ACK;
-  pack_num_network = htonl(*packet_num - 1);
+  pack_num_network = htonl(packet_num);
   std::memcpy(buf + 1, &pack_num_network, 4);
   sendto(sockfd, buf, 5, 0,
          (struct sockaddr *)dest_addr, sizeof(*dest_addr));

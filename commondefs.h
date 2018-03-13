@@ -9,6 +9,7 @@
 #define BADTIMEOUT 5
 #define WINDOW_START 5
 #define WINDOW_INCREASE 1
+#define WINDOWSIZE 10
 
 #define CLOSE   0b0 // Close.
 #define SYN     0b1 // Handshake.

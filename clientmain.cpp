@@ -14,9 +14,19 @@ int main(int argc, char **argv) {
   int dest_port;
   std::ostream *os;
   std::ofstream outfile;
-  int current_packet = 0;
-
   int sock_handle;
+
+  // For Proj2
+  char filebuf[(BUFFSIZE - 5) * WINDOWSIZE];
+  char buf[BUFFSIZE];
+  bool dirty[WINDOWSIZE];
+  int recvlen;
+  unsigned int addrlen = sizeof(dest_addr);
+  int packet_num;
+  int current_base = 0;
+  int timeout_counter = 0;
+  bool full_window;
+
 
   if (argc < 4 || argc > 5) {
     std::cerr << "Invalid number of arguments. Exiting.\n";
@@ -103,27 +113,73 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  // First pack, and first packet only.
-  send_f = std::bind(send_packsyn, sock_handle, &dest_addr, 50);
-  rec_f = std::bind(receive_pack, sock_handle, &dest_addr, &current_packet, os);
+  send_packsyn(sock_handle, &dest_addr, BUFFSIZE);
 
-  result = try_n_times(send_f, rec_f, BADTIMEOUT);
-  if(result == REC_FAILURE) {
-    std::cerr << "Request received failure message.\n";
-    return 0;
+  // And now we should be receiving packets.
+
+  std::memset(dirty, 0, sizeof dirty);
+  
+  while(1) {
+    recvlen = recvfrom(sock_handle, buf, BUFFSIZE, 0,
+                       (struct sockaddr *)&dest_addr, &addrlen);
+    if(recvlen == -1) {
+      timeout_counter++;
+      if(timeout_counter >= BADTIMEOUT) {
+        std::cerr << "Request timed out.\n";
+        return 0;
+      }
+      continue;
+    }
+    // Did the packsyn fail?
+    if(is_reqack(*buf)) {
+      send_packsyn(sock_handle, &dest_addr, BUFFSIZE);
+    }
+    // It's a packet!
+    else if(is_pack(*buf)) {
+      std::memcpy(&packet_num, buf + 1, 4);
+      packet_num = ntohl(packet_num);
+
+      if(packet_num < current_base) {
+        send_packack(sock_handle, &dest_addr, packet_num);
+      }
+      else if(packet_num - current_base <= WINDOWSIZE) {
+        if(!dirty[packet_num - current_base]) {
+          std::memcpy(filebuf + (packet_num - current_base) * BUFFSIZE,
+                      buf + 5, BUFFSIZE - 5);
+          dirty[packet_num - current_base] = true;
+        }
+        send_packack(sock_handle, &dest_addr, packet_num);
+      }
+      // Otherwise, it's discarded.
+    }
+    // It's a close!
+    else if(is_close(*buf)) {
+      for(int i = 0; i < WINDOWSIZE && dirty[i]; i++) {
+        os->write(filebuf + (i * (BUFFSIZE - 5)), BUFFSIZE - 5);
+      }
+      break;
+    }
+    else {
+      continue;
+    }
+
+    // Let's check if all of the window has been taken.
+    // An alternative is to periodically check and write parts of the window,
+    // but I ran out of time and it's a pretty silly change to begin with.
+    
+    full_window = true;
+    for(int i = 0; i < WINDOWSIZE; i++) {
+      if(!dirty[i]) {
+        full_window = false;
+        break;
+      }
+    }
+    if(full_window) {
+      os->write(filebuf, sizeof(filebuf));
+      std::memset(dirty, 0, sizeof dirty);
+      current_base += WINDOWSIZE;
+    }
   }
-  else if(result == REC_TIMEOUT) {
-    std::cerr << "Request timed out.\n";
-    return 0;
-  }
-
-
-  send_f = std::bind(send_packack, sock_handle, &dest_addr, &current_packet);
-
-  // Remainder of packets.
-  do {
-    result = try_n_times(send_f, rec_f, BADTIMEOUT);
-  } while (result == REC_SUCCESS);
     
   return 0;
 }

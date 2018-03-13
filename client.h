@@ -24,7 +24,7 @@ void send_packsyn(int sockfd, struct sockaddr_in *dest_addr,
                   int size);
 rec_outcome receive_pack(int sockfd, struct sockaddr_in *remote_addr, 
                          int *current_packet, std::ostream *os);
-void send_packack(int sockfd, struct sockaddr_in *remote_addr, int *packet_num);
+void send_packack(int sockfd, struct sockaddr_in *remote_addr, int packet_num);
 
 
 bool is_synack(char c);
